@@ -28,12 +28,12 @@ function buyFYDai(vyDaiReserves: any, fyDaiReserves: any, fyDai: any, timeTillMa
   const g = bignumber(950 / 1000)
   const t = multiply(k, T)
   const a = subtract(1, multiply(g, t))
-  const invA = divide(bignumber(1), a)
-  const invC = divide(bignumber(1), c)
-  const Za = multiply(c, pow(Z, a))
+  const invA = divide(1, a)
+  const invC = divide(1, c)
+  const Za = pow(multiply(c, Z), a)
   const Ya = pow(Y, a)
   const Yxa = pow(subtract(Y, x), a)
-  const sum = add(multiply(c, Za), multiply(invC, subtract(Ya, Yxa)))
+  const sum = add(Za, multiply(invC, subtract(Ya, Yxa)))
   const y = subtract(multiply(invC, pow(sum, invA)), Z)
   const yFee = add(y, fee)
 
@@ -51,7 +51,7 @@ function sellVYDai(vyDaiReserves: any, fyDaiReserves: any, vyDai: any, timeTillM
   const g = bignumber(950 / 1000)
   const t = multiply(k, T)
   const a = subtract(1, multiply(g, t))
-  const invA = divide(bignumber(1), a)
+  const invA = divide(1, a)
   const Za = multiply(c, pow(multiply(c, Z), a))
   const Ya = pow(Y, a)
   const Zxa = multiply(c, pow(multiply(c, add(Z, x)), a))
@@ -73,7 +73,7 @@ function buyVYDai(vyDaiReserves: any, fyDaiReserves: any, vyDai: any, timeTillMa
   const g = bignumber(1000 / 950)
   const t = multiply(k, T)
   const a = subtract(1, multiply(g, t))
-  const invA = divide(bignumber(1), a)
+  const invA = divide(1, a)
   const Za = multiply(c, pow(multiply(c, Z), a))
   const Ya = pow(Y, a)
   const Zxa = multiply(c, pow(multiply(c, subtract(Z, x)), a))
@@ -95,12 +95,12 @@ function sellFYDai(vyDaiReserves: any, fyDaiReserves: any, fyDai: any, timeTillM
   const g = bignumber(1000 / 950)
   const t = multiply(k, T)
   const a = subtract(1, multiply(g, t))
-  const invA = divide(bignumber(1), a)
-  const invC = divide(bignumber(1), c)
-  const Za = multiply(c, pow(Z, a))
+  const invA = divide(1, a)
+  const invC = divide(1, c)
+  const Za = pow(multiply(c, Z), a)
   const Ya = pow(Y, a)
   const Yxa = pow(add(Y, x), a)
-  const sum = add(Za, subtract(Ya, Yxa))
+  const sum = add(Za, multiply(invC, subtract(Ya, Yxa)))
   const y = subtract(Z, multiply(invC, pow(sum, invA)))
   const yFee = subtract(y, fee)
 
@@ -140,36 +140,42 @@ contract('VariableYieldMath - Curve', async (accounts) => {
   const g1 = new BN('950').mul(ONE64).div(new BN('1000')) // Sell vyDai to the pool
   const g2 = new BN('1000').mul(ONE64).div(new BN('950')) // Sell fyDai to the pool
 
-  const PRECISION = new BN('10000000000000') // 1e13
+  const PRECISION = new BN('100000000000000') // 1e14
 
   const vyDaiReserves = [
     '100000000000000000000000',
-    // '1000000000000000000000000',
+    '1000000000000000000000000',
     '10000000000000000000000000',
-    // '100000000000000000000000000',
+    '100000000000000000000000000',
     '1000000000000000000000000000',
   ]
   const fyDaiReserveDeltas = [
     '10000000000000000000',
-    // '1000000000000000000000',
+    '1000000000000000000000',
     '100000000000000000000000',
-    // '10000000000000000000000000',
+    '10000000000000000000000000',
     '1000000000000000000000000000',
   ]
   const tradeSizes = [
     '1000000000000000000',
-    // '10000000000000000000',
+    '10000000000000000000',
     '100000000000000000000',
-    // '1000000000000000000000',
+    '1000000000000000000000',
     '10000000000000000000000',
   ]
-  const timesTillMaturity = ['4', '40', '4000', '400000', '40000000']
+  const timesTillMaturity = [
+    '4',
+    '40',
+    '4000',
+    '400000',
+    '40000000'
+  ]
   const exchangeRates = [
     '1.00',
-    // '1.01',
-    // '1.05',
-    // '1.25',
-    // '2.00',
+    '1.01',
+    '1.05',
+    '1.25',
+    '2.00',
   ]
 
   beforeEach(async () => {
