@@ -277,11 +277,11 @@ contract('VariableYieldMath - Base', async (accounts) => {
       )
     })
 
-    it('Rounding induced error', async () => {
+    /* it('Rounding induced error', async () => {
       await expectRevert(
         yieldMath.vyDaiInForFYDaiOut(OneToken, OneToken, 0, secondsInOneYear, k, g0, ONE64.mul(TWO)),
         'YieldMath: Rounding induced error'
       )
-    })
+    }) */
   })
 })
