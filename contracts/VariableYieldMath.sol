@@ -360,7 +360,7 @@ library VariableYieldMath {
     uint256 za = c.mulu(vyDaiReserves.pow(uint128(a), ONE));
     require(za <= MAX, "YieldMath: Exchange rate overflow before trade");
 
-    // ya = c * (fyDaiReserves ** a)
+    // ya = fyDaiReserves ** a
     uint256 ya = fyDaiReserves.pow(uint128(a), ONE);
 
     // zx = vyDayReserves + vyDaiAmount
@@ -420,7 +420,7 @@ library VariableYieldMath {
     uint256 za = c.mulu(vyDaiReserves.pow(uint128(a), ONE));
     require(za <= MAX, "YieldMath: Exchange rate overflow before trade");
 
-    // ya = c * (fyDaiReserves ** a)
+    // ya = fyDaiReserves ** a
     uint256 ya = fyDaiReserves.pow(uint128(a), ONE);
 
     // yx = fyDayReserves + fyDaiAmount
@@ -472,22 +472,29 @@ library VariableYieldMath {
   /// @dev Splitting fyDaiInForVYDaiOut in two functions to avoid stack depth limits.
   function _fyDaiInForVYDaiOut(uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount, int128 a, int128 c)
   private pure returns(uint128) {
-    // cz = c * vyDaiReserves
-    uint256 cz = c.mulu(vyDaiReserves);
-    require(cz <= MAX, "YieldMath: Exchange rate overflow");
+    // za = c * (vyDaiReserves ** a)
+    uint256 za = c.mulu(vyDaiReserves.pow(uint128(a), ONE));
+    require(za <= MAX, "YieldMath: Exchange rate overflow before trade");
 
-    // czdz = c * (vyDaiReserves - vyDaiAmount)
-    uint256 czdz = c.mulu(uint256(vyDaiReserves) - uint256(vyDaiAmount));
-    require(czdz <= MAX, "YieldMath: Too much vyDai out");
+    // ya = fyDaiReserves ** a
+    uint256 ya = fyDaiReserves.pow(uint128(a), ONE);
 
-    uint256 sum =
-      c.mulu(uint128(cz).pow(uint128(a), ONE)) +
-      uint256(fyDaiReserves.pow(uint128(a), ONE)) -
-      c.mulu(uint128(czdz).pow(uint128(a), ONE));
-    require(sum <= MAX, "YieldMath: Resulting fyDai reserves too high");
+    // zx = vyDayReserves - vyDaiAmount
+    uint256 zx = uint256(vyDaiReserves) - uint256(vyDaiAmount);
+    require(zx <= MAX, "YieldMath: Too much vyDai out");
 
+    // zxa = c * (zx ** a)
+    uint256 zxa = c.mulu(uint128(zx).pow(uint128(a), ONE));
+    require(zxa <= MAX, "YieldMath: Exchange rate overflow after trade");
+
+    // sum = za + ya - zxa
+    uint256 sum = za + ya - zxa; // z < MAX, y < MAX, a < 1. It can only underflow, not overflow.
+    require(sum <= MAX, "YieldMath: Insufficient vyDai reserves");
+
+    // result = (sum ** (1/a)) - fyDaiReserves
     uint256 result = uint128(sum).pow(ONE, uint128(a)) - fyDaiReserves;
     require(result <= MAX, "YieldMath: Rounding induced error");
+
     result = result < type(uint128).max - 1e12 ? result + 1e12 : type(uint128).max; // Add error guard, ceiling the result at max
 
     return uint128(result);

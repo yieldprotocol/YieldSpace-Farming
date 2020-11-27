@@ -64,6 +64,29 @@ function sellFYDai(vyDaiReserves: any, fyDaiReserves: any, fyDai: any, timeTillM
   return yFee
 }
 
+// https://www.desmos.com/calculator/0rgnmtckvy
+function buyVYDai(vyDaiReserves: any, fyDaiReserves: any, vyDai: any, timeTillMaturity: any, rate: any) {
+  const fee = bignumber(1000000000000)
+  const Z = bignumber(vyDaiReserves)
+  const Y = bignumber(fyDaiReserves)
+  const T = bignumber(timeTillMaturity)
+  const x = bignumber(vyDai)
+  const c = bignumber(rate)
+  const k = bignumber(1 / (4 * 365 * 24 * 60 * 60)) // 1 / seconds in four years
+  const g = bignumber(1000 / 950)
+  const t = multiply(k, T)
+  const a = subtract(1, multiply(g, t))
+  const invA = divide(1, a)
+  const Za = multiply(c, pow(Z, a))
+  const Ya = pow(Y, a)
+  const Zxa = multiply(c, pow(subtract(Z, x), a))
+  const sum = subtract(add(Za, Ya), Zxa)
+  const y = subtract(pow(sum, invA), Y)
+  const yFee = add(y, fee)
+
+  return yFee
+}
+
 // https://www.desmos.com/calculator/ws5oqj8x5i
 function buyFYDai(vyDaiReserves: any, fyDaiReserves: any, fyDai: any, timeTillMaturity: any, rate: any) {
   const fee = bignumber(1000000000000)
@@ -83,29 +106,6 @@ function buyFYDai(vyDaiReserves: any, fyDaiReserves: any, fyDai: any, timeTillMa
   const Yxa = pow(subtract(Y, x), a)
   const sum = add(Za, subtract(Ya, Yxa))
   const y = subtract(pow(multiply(invC, sum), invA), Z)
-  const yFee = add(y, fee)
-
-  return yFee
-}
-
-// https://www.desmos.com/calculator/0rgnmtckvy
-function buyVYDai(vyDaiReserves: any, fyDaiReserves: any, vyDai: any, timeTillMaturity: any, rate: any) {
-  const fee = bignumber(1000000000000)
-  const Z = bignumber(vyDaiReserves)
-  const Y = bignumber(fyDaiReserves)
-  const T = bignumber(timeTillMaturity)
-  const x = bignumber(vyDai)
-  const c = bignumber(rate)
-  const k = bignumber(1 / (4 * 365 * 24 * 60 * 60)) // 1 / seconds in four years
-  const g = bignumber(1000 / 950)
-  const t = multiply(k, T)
-  const a = subtract(1, multiply(g, t))
-  const invA = divide(1, a)
-  const Za = multiply(c, pow(Z, a))
-  const Ya = pow(Y, a)
-  const Zxa = multiply(c, pow(subtract(Z, x), a))
-  const sum = subtract(add(Za, Ya), Zxa)
-  const y = subtract(pow(sum, invA), Y)
   const yFee = add(y, fee)
 
   return yFee
@@ -222,20 +222,6 @@ contract('VariableYieldMath - Surface', async (accounts) => {
                 console.log(`onChain sellFYDai: ${onChain}`)
                 // almostEqual(onChain, floor(offChain).toFixed(), PRECISION)
 
-                /* offChain = buyFYDai(vyDaiReserve, fyDaiReserve, tradeSize, timeTillMaturity, exchangeRate)
-                onChain = await yieldMath.vyDaiInForFYDaiOut(
-                  vyDaiReserve,
-                  fyDaiReserve,
-                  tradeSize,
-                  timeTillMaturity,
-                  k,
-                  g1,
-                  bnRate
-                )
-                console.log(`offChain buyFYDai: ${floor(offChain).toFixed()}`)
-                console.log(`onChain buyFYDai: ${onChain}`)
-                // almostEqual(onChain, floor(offChain).toFixed(), PRECISION) */
-
                 offChain = sellVYDai(vyDaiReserve, fyDaiReserve, tradeSize, timeTillMaturity, exchangeRate)
                 onChain = await yieldMath.fyDaiOutForVYDaiIn(
                   vyDaiReserve,
@@ -250,7 +236,7 @@ contract('VariableYieldMath - Surface', async (accounts) => {
                 console.log(`onChain sellVYDai: ${onChain}`)
                 almostEqual(onChain, floor(offChain).toFixed(), PRECISION)
 
-                /* offChain = buyVYDai(vyDaiReserve, fyDaiReserve, tradeSize, timeTillMaturity, exchangeRate)
+                offChain = buyVYDai(vyDaiReserve, fyDaiReserve, tradeSize, timeTillMaturity, exchangeRate)
                 onChain = await yieldMath.fyDaiInForVYDaiOut(
                   vyDaiReserve,
                   fyDaiReserve,
@@ -262,6 +248,20 @@ contract('VariableYieldMath - Surface', async (accounts) => {
                 )
                 console.log(`offChain buyVYDai: ${floor(offChain).toFixed()}`)
                 console.log(`onChain buyVYDai: ${onChain}`)
+                // almostEqual(onChain, floor(offChain).toFixed(), PRECISION)
+
+                /* offChain = buyFYDai(vyDaiReserve, fyDaiReserve, tradeSize, timeTillMaturity, exchangeRate)
+                onChain = await yieldMath.vyDaiInForFYDaiOut(
+                  vyDaiReserve,
+                  fyDaiReserve,
+                  tradeSize,
+                  timeTillMaturity,
+                  k,
+                  g1,
+                  bnRate
+                )
+                console.log(`offChain buyFYDai: ${floor(offChain).toFixed()}`)
+                console.log(`onChain buyFYDai: ${onChain}`)
                 // almostEqual(onChain, floor(offChain).toFixed(), PRECISION) */
 
                 console.log()
