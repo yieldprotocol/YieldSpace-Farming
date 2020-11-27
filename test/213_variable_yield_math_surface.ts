@@ -149,29 +149,29 @@ contract('VariableYieldMath - Surface', async (accounts) => {
   const vyDaiReserves = [
     // '100000000000000000000000',
     // '1000000000000000000000000',
-    // '10000000000000000000000000',
-    // '100000000000000000000000000',
+    '10000000000000000000000000',
+    '100000000000000000000000000',
     '1000000000000000000000000000',
   ]
   const fyDaiReserveDeltas = [
     // '10000000000000000000',
     // '1000000000000000000000',
-    // '100000000000000000000000',
-    // '10000000000000000000000000',
+    '100000000000000000000000',
+    '10000000000000000000000000',
     '1000000000000000000000000000',
   ]
   const tradeSizes = [
     // '1000000000000000000',
     // '10000000000000000000',
-    // '100000000000000000000',
-    // '1000000000000000000000',
+    '100000000000000000000',
+    '1000000000000000000000',
     '10000000000000000000000',
   ]
   const timesTillMaturity = [
     // '4',
     // '40',
-    // '4000',
-    // '400000',
+    '4000',
+    '400000',
     '40000000'
   ]
   const exchangeRates = [
@@ -220,7 +220,7 @@ contract('VariableYieldMath - Surface', async (accounts) => {
                 )
                 console.log(`offChain sellFYDai: ${floor(offChain).toFixed()}`)
                 console.log(`onChain sellFYDai: ${onChain}`)
-                // almostEqual(onChain, floor(offChain).toFixed(), PRECISION)
+                almostEqual(onChain, floor(offChain).toFixed(), PRECISION)
 
                 offChain = sellVYDai(vyDaiReserve, fyDaiReserve, tradeSize, timeTillMaturity, exchangeRate)
                 onChain = await yieldMath.fyDaiOutForVYDaiIn(
@@ -248,9 +248,9 @@ contract('VariableYieldMath - Surface', async (accounts) => {
                 )
                 console.log(`offChain buyVYDai: ${floor(offChain).toFixed()}`)
                 console.log(`onChain buyVYDai: ${onChain}`)
-                // almostEqual(onChain, floor(offChain).toFixed(), PRECISION)
+                almostEqual(onChain, floor(offChain).toFixed(), PRECISION)
 
-                /* offChain = buyFYDai(vyDaiReserve, fyDaiReserve, tradeSize, timeTillMaturity, exchangeRate)
+                offChain = buyFYDai(vyDaiReserve, fyDaiReserve, tradeSize, timeTillMaturity, exchangeRate)
                 onChain = await yieldMath.vyDaiInForFYDaiOut(
                   vyDaiReserve,
                   fyDaiReserve,
@@ -262,7 +262,7 @@ contract('VariableYieldMath - Surface', async (accounts) => {
                 )
                 console.log(`offChain buyFYDai: ${floor(offChain).toFixed()}`)
                 console.log(`onChain buyFYDai: ${onChain}`)
-                // almostEqual(onChain, floor(offChain).toFixed(), PRECISION) */
+                almostEqual(onChain, floor(offChain).toFixed(), PRECISION)
 
                 console.log()
               }

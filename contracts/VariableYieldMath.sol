@@ -329,7 +329,7 @@ library VariableYieldMath {
 
   /**
    * Calculate the amount of fyDai a user would get for given amount of VYDai.
-   * https://www.desmos.com/calculator/ducvqay9yl
+   * https://www.desmos.com/calculator/5nf2xuy6yb
    * @param vyDaiReserves VYDai reserves amount
    * @param fyDaiReserves fyDai reserves amount
    * @param vyDaiAmount VYDai amount to be traded
@@ -386,7 +386,7 @@ library VariableYieldMath {
 
   /**
    * Calculate the amount of VYDai a user would get for certain amount of fyDai.
-   * https://www.desmos.com/calculator/gsw593jzbr
+   * https://www.desmos.com/calculator/6jlrre7ybt
    * @param vyDaiReserves VYDai reserves amount
    * @param fyDaiReserves fyDai reserves amount
    * @param fyDaiAmount fyDai amount to be traded
@@ -434,7 +434,7 @@ library VariableYieldMath {
     uint256 sum = za + ya - yxa; // z < MAX, y < MAX, a < 1. It can only underflow, not overflow.
     require(sum <= MAX, "YieldMath: Insufficient fyDai reserves");
 
-    // result = vyDaiReserves - ((c * sum) ** (1/a))
+    // result = vyDaiReserves - (((1/c) * sum) ** (1/a))
     uint256 result = vyDaiReserves - uint128(invC.mulu(sum)).pow(ONE, uint128(a)); // Can sum > MAX when multiplied by invC?
     require(result <= MAX, "YieldMath: Rounding induced error");
 
@@ -445,7 +445,7 @@ library VariableYieldMath {
 
   /**
    * Calculate the amount of fyDai a user could sell for given amount of VYDai.
-   * https://www.desmos.com/calculator/pr5opcr0w3
+   * https://www.desmos.com/calculator/0rgnmtckvy
    * @param vyDaiReserves VYDai reserves amount
    * @param fyDaiReserves fyDai reserves amount
    * @param vyDaiAmount VYDai amount to be traded
@@ -502,7 +502,7 @@ library VariableYieldMath {
 
   /**
    * Calculate the amount of VYDai a user would have to pay for certain amount of fyDai.
-   * https://www.desmos.com/calculator/poicbg2qiw
+   * https://www.desmos.com/calculator/ws5oqj8x5i
    * @param vyDaiReserves VYDai reserves amount
    * @param fyDaiReserves fyDai reserves amount
    * @param fyDaiAmount fyDai amount to be traded
@@ -527,30 +527,35 @@ library VariableYieldMath {
   /// @dev Splitting vyDaiInForFYDaiOut in two functions to avoid stack depth limits.
   function _vyDaiInForFYDaiOut(uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount, int128 a, int128 c)
   private pure returns (uint128) {
-      // invC = 1 / c
-      int128 invC = c.inv();
+    // invC = 1 / c
+    int128 invC = c.inv();
 
-      // cz = c * vyDaiReserves
-      uint256 cz = c.mulu(vyDaiReserves);
-      require(cz <= MAX, "YieldMath: Exchange rate overflow");
+    // za = c * (vyDaiReserves ** a)
+    uint256 za = c.mulu(vyDaiReserves.pow(uint128(a), ONE));
+    require(za <= MAX, "YieldMath: Exchange rate overflow before trade");
 
-      // ydy = fyDaiReserves - fyDaiAmount;
-      uint256 ydy = uint256(fyDaiReserves) - uint256(fyDaiAmount);
-      require(ydy <= MAX, "YieldMath: Too much fyDai out");
+    // ya = fyDaiReserves ** a
+    uint256 ya = fyDaiReserves.pow(uint128(a), ONE);
 
-      uint256 sum =
-        uint256(uint128(cz).pow(uint128(a), ONE)) +
-        invC.mulu(
-          uint256(fyDaiReserves.pow(uint128(a), ONE)) -
-          uint256(uint128(ydy).pow(uint128(a), ONE)));
-      require(sum <= MAX, "YieldMath: Resulting vyDai reserves too high");
+    // yx = vyDayReserves - vyDaiAmount
+    uint256 yx = uint256(fyDaiReserves) - uint256(fyDaiAmount);
+    require(yx <= MAX, "YieldMath: Too much fyDai out");
 
-      uint256 result = invC.mulu(uint128(sum).pow(ONE, uint128(a))) - vyDaiReserves;
-      require(result <= MAX, "YieldMath: Rounding induced error");
-      result = result < type(uint128).max - 1e12 ? result + 1e12 : type(uint128).max; // Add error guard, ceiling the result at max
+    // yxa = yx ** a
+    uint256 yxa = uint128(yx).pow(uint128(a), ONE);
 
-      return uint128(result);
-    }
+    // sum = za + ya - yxa
+    uint256 sum = za + ya - yxa; // z < MAX, y < MAX, a < 1. It can only underflow, not overflow.
+    require(sum <= MAX, "YieldMath: Insufficient fyDai reserves");
+
+    // result = (((1/c) * sum) ** (1/a)) - vyDaiReserves
+    uint256 result = uint128(invC.mulu(sum)).pow(ONE, uint128(a)) - vyDaiReserves; // Can sum > MAX when multiplied by invC?
+    require(result <= MAX, "YieldMath: Rounding induced error");
+
+    result = result < type(uint128).max - 1e12 ? result + 1e12 : type(uint128).max; // Add error guard, ceiling the result at max
+
+    return uint128(result);
+  }
 
   /**
    * Calculate the amount of fyDai a user would get for given amount of VYDai.
