@@ -379,7 +379,7 @@ library VariableYieldMath {
     uint256 result = fyDaiReserves - uint128(sum).pow(ONE, uint128(a));
     require(result <= MAX, "YieldMath: Rounding induced error");
 
-    result = result > 1e12 ? result - 1e12 : 0; // Substract error guard, flooring the result at zero
+    result = result > 1e12 ? result - 1e12 : 0; // Subtract error guard, flooring the result at zero
 
     return uint128(result);
   }
@@ -438,7 +438,7 @@ library VariableYieldMath {
     uint256 result = vyDaiReserves - uint128(invC.mulu(sum)).pow(ONE, uint128(a)); // Can sum > MAX when multiplied by invC?
     require(result <= MAX, "YieldMath: Rounding induced error");
 
-    result = result > 1e12 ? result - 1e12 : 0; // Substract error guard, flooring the result at zero
+    result = result > 1e12 ? result - 1e12 : 0; // Subtract error guard, flooring the result at zero
 
     return uint128(result);
   }
