@@ -343,32 +343,27 @@ library VariableYieldMath {
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount,
     uint128 timeTillMaturity, int128 k, int128 g, int128 c)
   internal pure returns(uint128) {
-    // t = k * timeTillMaturity
-    int128 t = k.mul(timeTillMaturity.fromUInt());
+    require(c > 0, "YieldMath: c must be positive");
 
-    // a = (1 - gt)
-    int128 a = int128(ONE).sub(g.mul(t));
-    require(a > 0, "YieldMath: Too far from maturity");
-
-    return _fyDaiOutForVYDaiIn(vyDaiReserves, fyDaiReserves, vyDaiAmount, a, c);
+    return _fyDaiOutForVYDaiIn(vyDaiReserves, fyDaiReserves, vyDaiAmount, _computeA(timeTillMaturity, k, g), c);
   }
 
   /// @dev Splitting fyDaiOutForVYDaiIn in two functions to avoid stack depth limits.
-  function _fyDaiOutForVYDaiIn(uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount, int128 a, int128 c)
+  function _fyDaiOutForVYDaiIn(uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount, uint128 a, int128 c)
   private pure returns(uint128) {
     // za = c * (vyDaiReserves ** a)
-    uint256 za = c.mulu(vyDaiReserves.pow(uint128(a), ONE));
+    uint256 za = c.mulu(vyDaiReserves.pow(a, ONE));
     require(za <= MAX, "YieldMath: Exchange rate overflow before trade");
 
     // ya = fyDaiReserves ** a
-    uint256 ya = fyDaiReserves.pow(uint128(a), ONE);
+    uint256 ya = fyDaiReserves.pow(a, ONE);
 
     // zx = vyDayReserves + vyDaiAmount
     uint256 zx = uint256(vyDaiReserves) + uint256(vyDaiAmount);
     require(zx <= MAX, "YieldMath: Too much vyDai in");
 
     // zxa = c * (zx ** a)
-    uint256 zxa = c.mulu(uint128(zx).pow(uint128(a), ONE));
+    uint256 zxa = c.mulu(uint128(zx).pow(a, ONE));
     require(zxa <= MAX, "YieldMath: Exchange rate overflow after trade");
 
     // sum = za + ya - zxa
@@ -376,7 +371,7 @@ library VariableYieldMath {
     require(sum <= MAX, "YieldMath: Insufficient vyDai reserves"); // Error doesn't make sense
 
     // result = fyDaiReserves - (sum ** (1/a))
-    uint256 result = fyDaiReserves - uint128(sum).pow(ONE, uint128(a));
+    uint256 result = uint256(fyDaiReserves) - uint256(uint128(sum).pow(ONE, a));
     require(result <= MAX, "YieldMath: Rounding induced error");
 
     result = result > 1e12 ? result - 1e12 : 0; // Subtract error guard, flooring the result at zero
@@ -400,42 +395,41 @@ library VariableYieldMath {
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount,
     uint128 timeTillMaturity, int128 k, int128 g, int128 c)
   internal pure returns(uint128) {
-    // t = k * timeTillMaturity
-    int128 t = k.mul(timeTillMaturity.fromUInt());
+    require(c > 0, "YieldMath: c must be positive");
 
-    // a = (1 - gt)
-    int128 a = int128(ONE).sub(g.mul(t));
-    require(a > 0, "YieldMath: Too far from maturity");
-
-    return _vyDaiOutForFYDaiIn(vyDaiReserves, fyDaiReserves, fyDaiAmount, a, c);
+    return _vyDaiOutForFYDaiIn(vyDaiReserves, fyDaiReserves, fyDaiAmount, _computeA(timeTillMaturity, k, g), c);
   }
 
   /// @dev Splitting vyDaiOutForFYDaiIn in two functions to avoid stack depth limits.
-  function _vyDaiOutForFYDaiIn(uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount, int128 a, int128 c)
+  function _vyDaiOutForFYDaiIn(uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount, uint128 a, int128 c)
   private pure returns(uint128) {
     // invC = 1 / c
     int128 invC = c.inv();
 
     // za = c * (vyDaiReserves ** a)
-    uint256 za = c.mulu(vyDaiReserves.pow(uint128(a), ONE));
+    uint256 za = c.mulu(vyDaiReserves.pow(a, ONE));
     require(za <= MAX, "YieldMath: Exchange rate overflow before trade");
 
     // ya = fyDaiReserves ** a
-    uint256 ya = fyDaiReserves.pow(uint128(a), ONE);
+    uint256 ya = fyDaiReserves.pow(a, ONE);
 
     // yx = fyDayReserves + fyDaiAmount
     uint256 yx = uint256(fyDaiReserves) + uint256(fyDaiAmount);
     require(yx <= MAX, "YieldMath: Too much fyDai in");
 
     // yxa = yx ** a
-    uint256 yxa = uint128(yx).pow(uint128(a), ONE);
+    uint256 yxa = uint128(yx).pow(a, ONE);
 
     // sum = za + ya - yxa
     uint256 sum = za + ya - yxa; // z < MAX, y < MAX, a < 1. It can only underflow, not overflow.
     require(sum <= MAX, "YieldMath: Insufficient fyDai reserves"); // Error doesn't make sense
 
+    // (1/c) * sum
+    uint256 invCsum = invC.mulu(sum);
+    require(invCsum <= MAX, "YieldMath: c too close to zero");
+
     // result = vyDaiReserves - (((1/c) * sum) ** (1/a))
-    uint256 result = vyDaiReserves - uint128(invC.mulu(sum)).pow(ONE, uint128(a)); // Can sum > MAX when multiplied by invC?
+    uint256 result = uint256(vyDaiReserves) - uint256(uint128(invCsum).pow(ONE, a));
     require(result <= MAX, "YieldMath: Rounding induced error");
 
     result = result > 1e12 ? result - 1e12 : 0; // Subtract error guard, flooring the result at zero
@@ -459,32 +453,27 @@ library VariableYieldMath {
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount,
     uint128 timeTillMaturity, int128 k, int128 g, int128 c)
   internal pure returns(uint128) {
-    // t = k * timeTillMaturity
-    int128 t = k.mul(timeTillMaturity.fromUInt());
+    require(c > 0, "YieldMath: c must be positive");
 
-    // a = (1 - gt)
-    int128 a = int128(ONE).sub(g.mul(t));
-    require(a > 0, "YieldMath: Too far from maturity");
-
-    return _fyDaiInForVYDaiOut(vyDaiReserves, fyDaiReserves, vyDaiAmount, a, c);
+    return _fyDaiInForVYDaiOut(vyDaiReserves, fyDaiReserves, vyDaiAmount, _computeA(timeTillMaturity, k, g), c);
   }
 
   /// @dev Splitting fyDaiInForVYDaiOut in two functions to avoid stack depth limits.
-  function _fyDaiInForVYDaiOut(uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount, int128 a, int128 c)
+  function _fyDaiInForVYDaiOut(uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount, uint128 a, int128 c)
   private pure returns(uint128) {
     // za = c * (vyDaiReserves ** a)
-    uint256 za = c.mulu(vyDaiReserves.pow(uint128(a), ONE));
+    uint256 za = c.mulu(vyDaiReserves.pow(a, ONE));
     require(za <= MAX, "YieldMath: Exchange rate overflow before trade");
 
     // ya = fyDaiReserves ** a
-    uint256 ya = fyDaiReserves.pow(uint128(a), ONE);
+    uint256 ya = fyDaiReserves.pow(a, ONE);
 
     // zx = vyDayReserves - vyDaiAmount
     uint256 zx = uint256(vyDaiReserves) - uint256(vyDaiAmount);
     require(zx <= MAX, "YieldMath: Too much vyDai out");
 
     // zxa = c * (zx ** a)
-    uint256 zxa = c.mulu(uint128(zx).pow(uint128(a), ONE));
+    uint256 zxa = c.mulu(uint128(zx).pow(a, ONE));
     require(zxa <= MAX, "YieldMath: Exchange rate overflow after trade");
 
     // sum = za + ya - zxa
@@ -492,10 +481,10 @@ library VariableYieldMath {
     require(sum <= MAX, "YieldMath: Insufficient vyDai reserves");
 
     // result = (sum ** (1/a)) - fyDaiReserves
-    uint256 result = uint128(sum).pow(ONE, uint128(a)) - fyDaiReserves;
+    uint256 result = uint256(uint128(sum).pow(ONE, a)) - uint256(fyDaiReserves);
     require(result <= MAX, "YieldMath: Rounding induced error");
 
-    result = result < type(uint128).max - 1e12 ? result + 1e12 : type(uint128).max; // Add error guard, ceiling the result at max
+    result = result < MAX - 1e12 ? result + 1e12 : MAX; // Add error guard, ceiling the result at max
 
     return uint128(result);
   }
@@ -517,44 +506,59 @@ library VariableYieldMath {
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount,
     uint128 timeTillMaturity, int128 k, int128 g, int128 c)
   internal pure returns(uint128) {
-    // a = (1 - g * k * timeTillMaturity)
-    int128 a = int128(ONE).sub(g.mul(k.mul(timeTillMaturity.fromUInt())));
-    require(a > 0, "YieldMath: Too far from maturity");
+    require(c > 0, "YieldMath: c must be positive");
 
-    return _vyDaiInForFYDaiOut(vyDaiReserves, fyDaiReserves, fyDaiAmount, a, c);
+    return _vyDaiInForFYDaiOut(vyDaiReserves, fyDaiReserves, fyDaiAmount, _computeA(timeTillMaturity, k, g), c);
   }
 
   /// @dev Splitting vyDaiInForFYDaiOut in two functions to avoid stack depth limits.
-  function _vyDaiInForFYDaiOut(uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount, int128 a, int128 c)
+  function _vyDaiInForFYDaiOut(uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount, uint128 a, int128 c)
   private pure returns (uint128) {
     // invC = 1 / c
     int128 invC = c.inv();
 
     // za = c * (vyDaiReserves ** a)
-    uint256 za = c.mulu(vyDaiReserves.pow(uint128(a), ONE));
+    uint256 za = c.mulu(vyDaiReserves.pow(a, ONE));
     require(za <= MAX, "YieldMath: Exchange rate overflow before trade");
 
     // ya = fyDaiReserves ** a
-    uint256 ya = fyDaiReserves.pow(uint128(a), ONE);
+    uint256 ya = fyDaiReserves.pow(a, ONE);
 
     // yx = vyDayReserves - vyDaiAmount
     uint256 yx = uint256(fyDaiReserves) - uint256(fyDaiAmount);
     require(yx <= MAX, "YieldMath: Too much fyDai out");
 
     // yxa = yx ** a
-    uint256 yxa = uint128(yx).pow(uint128(a), ONE);
+    uint256 yxa = uint128(yx).pow(a, ONE);
 
     // sum = za + ya - yxa
     uint256 sum = za + ya - yxa; // z < MAX, y < MAX, a < 1. It can only underflow, not overflow.
     require(sum <= MAX, "YieldMath: Insufficient fyDai reserves");
 
+    // (1/c) * sum
+    uint256 invCsum = invC.mulu(sum);
+    require(invCsum <= MAX, "YieldMath: c too close to zero");
+
     // result = (((1/c) * sum) ** (1/a)) - vyDaiReserves
-    uint256 result = uint128(invC.mulu(sum)).pow(ONE, uint128(a)) - vyDaiReserves; // Can sum > MAX when multiplied by invC?
+    uint256 result = uint256(uint128(invCsum).pow(ONE, a)) - uint256(vyDaiReserves);
     require(result <= MAX, "YieldMath: Rounding induced error");
 
-    result = result < type(uint128).max - 1e12 ? result + 1e12 : type(uint128).max; // Add error guard, ceiling the result at max
+    result = result < MAX - 1e12 ? result + 1e12 : MAX; // Add error guard, ceiling the result at max
 
     return uint128(result);
+  }
+
+  function _computeA(uint128 timeTillMaturity, int128 k, int128 g) private pure returns (uint128) {
+    // t = k * timeTillMaturity
+    int128 t = k.mul(timeTillMaturity.fromUInt());
+    require(t > 0, "YieldMath: k must be positive");
+
+    // a = (1 - gt)
+    int128 a = int128(ONE).sub(g.mul(t));
+    require(a > 0, "YieldMath: Too far from maturity");
+    require(a <= int128(ONE), "YieldMath: g must be positive");
+
+    return uint128(a);
   }
 
   /**
