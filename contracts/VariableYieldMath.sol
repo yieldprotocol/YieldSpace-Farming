@@ -551,7 +551,7 @@ library VariableYieldMath {
   function _computeA(uint128 timeTillMaturity, int128 k, int128 g) private pure returns (uint128) {
     // t = k * timeTillMaturity
     int128 t = k.mul(timeTillMaturity.fromUInt());
-    require(t > 0, "YieldMath: k must be positive");
+    require(t >= 0, "YieldMath: t must be positive"); // Meaning neither T or k can be negative
 
     // a = (1 - gt)
     int128 a = int128(ONE).sub(g.mul(t));
