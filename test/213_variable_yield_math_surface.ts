@@ -84,15 +84,9 @@ contract('VariableYieldMath - Surface', async (accounts) => {
     // '40',
     '4000',
     '400000',
-    '40000000'
+    '40000000',
   ]
-  const exchangeRates = [
-    '1.00',
-    '1.01',
-    '1.05',
-    '1.25',
-    '2.00',
-  ]
+  const exchangeRates = ['1.00', '1.01', '1.05', '1.25', '2.00']
 
   beforeEach(async () => {
     snapshot = await helper.takeSnapshot()

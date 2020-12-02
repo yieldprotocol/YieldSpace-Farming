@@ -30,7 +30,6 @@ const g2 = new BN('1000').mul(ONE64).div(new BN('950')) // Sell fyDai to the poo
 
 const PRECISION = new BN('10000000000000000000') // 1e19
 
-
 function toBigNumber(x: any) {
   if (typeof x == 'object') x = x.toString()
   if (typeof x == 'number') return new BN(x)
@@ -128,13 +127,24 @@ contract('VariableYieldMath - Surface', async (accounts) => {
             for (var timeTillMaturity of timesTillMaturity) {
               for (var initialRate of initialRates) {
                 for (var normalizedRate of normalizedRates) {
-                  console.log(`vyDaiReserve, fyDaiReserveDelta, tradeSize, timeTillMaturity, initialRate, normalizedRate`)
-                  console.log(`${vyDaiReserve}, ${fyDaiReserveDelta}, ${tradeSize}, ${timeTillMaturity}, ${initialRate}, ${normalizedRate}`)
+                  console.log(
+                    `vyDaiReserve, fyDaiReserveDelta, tradeSize, timeTillMaturity, initialRate, normalizedRate`
+                  )
+                  console.log(
+                    `${vyDaiReserve}, ${fyDaiReserveDelta}, ${tradeSize}, ${timeTillMaturity}, ${initialRate}, ${normalizedRate}`
+                  )
                   const fyDaiReserve = new BN(vyDaiReserve).add(new BN(fyDaiReserveDelta)).toString()
                   const currentRate = Number(initialRate) * Number(normalizedRate)
 
                   let offChain, onChain
-                  offChain = sellFYDaiNormalized(vyDaiReserve, fyDaiReserve, tradeSize, timeTillMaturity, initialRate, currentRate)
+                  offChain = sellFYDaiNormalized(
+                    vyDaiReserve,
+                    fyDaiReserve,
+                    tradeSize,
+                    timeTillMaturity,
+                    initialRate,
+                    currentRate
+                  )
                   onChain = await yieldMath.vyDaiOutForFYDaiInNormalized(
                     vyDaiReserve,
                     fyDaiReserve,
@@ -149,7 +159,14 @@ contract('VariableYieldMath - Surface', async (accounts) => {
                   console.log(`onChain sellFYDai: ${onChain}`)
                   almostEqual(onChain, floor(offChain).toFixed(), PRECISION)
 
-                  offChain = sellVYDaiNormalized(vyDaiReserve, fyDaiReserve, tradeSize, timeTillMaturity, initialRate, currentRate)
+                  offChain = sellVYDaiNormalized(
+                    vyDaiReserve,
+                    fyDaiReserve,
+                    tradeSize,
+                    timeTillMaturity,
+                    initialRate,
+                    currentRate
+                  )
                   onChain = await yieldMath.fyDaiOutForVYDaiInNormalized(
                     vyDaiReserve,
                     fyDaiReserve,
@@ -164,7 +181,14 @@ contract('VariableYieldMath - Surface', async (accounts) => {
                   console.log(`onChain sellVYDai: ${onChain}`)
                   almostEqual(onChain, floor(offChain).toFixed(), PRECISION)
 
-                  offChain = buyVYDaiNormalized(vyDaiReserve, fyDaiReserve, tradeSize, timeTillMaturity, initialRate, currentRate)
+                  offChain = buyVYDaiNormalized(
+                    vyDaiReserve,
+                    fyDaiReserve,
+                    tradeSize,
+                    timeTillMaturity,
+                    initialRate,
+                    currentRate
+                  )
                   onChain = await yieldMath.fyDaiInForVYDaiOutNormalized(
                     vyDaiReserve,
                     fyDaiReserve,
@@ -179,7 +203,14 @@ contract('VariableYieldMath - Surface', async (accounts) => {
                   console.log(`onChain buyVYDai: ${onChain}`)
                   almostEqual(onChain, floor(offChain).toFixed(), PRECISION)
 
-                  offChain = buyFYDaiNormalized(vyDaiReserve, fyDaiReserve, tradeSize, timeTillMaturity, initialRate, currentRate)
+                  offChain = buyFYDaiNormalized(
+                    vyDaiReserve,
+                    fyDaiReserve,
+                    tradeSize,
+                    timeTillMaturity,
+                    initialRate,
+                    currentRate
+                  )
                   onChain = await yieldMath.vyDaiInForFYDaiOutNormalized(
                     vyDaiReserve,
                     fyDaiReserve,

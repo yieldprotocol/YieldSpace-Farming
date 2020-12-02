@@ -1,6 +1,5 @@
 const { bignumber, add, subtract, multiply, divide, pow } = require('mathjs')
 
-
 // https://www.desmos.com/calculator/5nf2xuy6yb
 export function sellVYDai(vyDaiReserves: any, fyDaiReserves: any, vyDai: any, timeTillMaturity: any, rate: any): any {
   const fee = bignumber(1000000000000)
@@ -24,7 +23,14 @@ export function sellVYDai(vyDaiReserves: any, fyDaiReserves: any, vyDai: any, ti
   return yFee
 }
 
-export function sellVYDaiNormalized(vyDaiReserves: any, fyDaiReserves: any, vyDai: any, timeTillMaturity: any, initialRate: any, currentRate: any): any {
+export function sellVYDaiNormalized(
+  vyDaiReserves: any,
+  fyDaiReserves: any,
+  vyDai: any,
+  timeTillMaturity: any,
+  initialRate: any,
+  currentRate: any
+): any {
   const c0 = bignumber(initialRate)
 
   return sellVYDai(
@@ -54,23 +60,33 @@ export function sellFYDai(vyDaiReserves: any, fyDaiReserves: any, fyDai: any, ti
   const Ya = pow(Y, a)
   const Yxa = pow(add(Y, x), a)
   const sum = add(Za, subtract(Ya, Yxa))
-  const y = subtract(Z,  pow(multiply(invC, sum), invA))
+  const y = subtract(Z, pow(multiply(invC, sum), invA))
   const yFee = subtract(y, fee)
 
   return yFee
 }
 
-export function sellFYDaiNormalized(vyDaiReserves: any, fyDaiReserves: any, fyDai: any, timeTillMaturity: any, initialRate: any, currentRate: any): any {
+export function sellFYDaiNormalized(
+  vyDaiReserves: any,
+  fyDaiReserves: any,
+  fyDai: any,
+  timeTillMaturity: any,
+  initialRate: any,
+  currentRate: any
+): any {
   const c0 = bignumber(initialRate)
   const invC0 = divide(1, c0)
 
-  return multiply(invC0, sellFYDai(
-    multiply(bignumber(vyDaiReserves), c0),
-    fyDaiReserves,
-    fyDai,
-    timeTillMaturity,
-    divide(bignumber(currentRate), c0)
-  ))
+  return multiply(
+    invC0,
+    sellFYDai(
+      multiply(bignumber(vyDaiReserves), c0),
+      fyDaiReserves,
+      fyDai,
+      timeTillMaturity,
+      divide(bignumber(currentRate), c0)
+    )
+  )
 }
 
 // https://www.desmos.com/calculator/0rgnmtckvy
@@ -96,7 +112,14 @@ export function buyVYDai(vyDaiReserves: any, fyDaiReserves: any, vyDai: any, tim
   return yFee
 }
 
-export function buyVYDaiNormalized(vyDaiReserves: any, fyDaiReserves: any, vyDai: any, timeTillMaturity: any, initialRate: any, currentRate: any): any {
+export function buyVYDaiNormalized(
+  vyDaiReserves: any,
+  fyDaiReserves: any,
+  vyDai: any,
+  timeTillMaturity: any,
+  initialRate: any,
+  currentRate: any
+): any {
   const c0 = bignumber(initialRate)
 
   return buyVYDai(
@@ -132,15 +155,25 @@ export function buyFYDai(vyDaiReserves: any, fyDaiReserves: any, fyDai: any, tim
   return yFee
 }
 
-export function buyFYDaiNormalized(vyDaiReserves: any, fyDaiReserves: any, fyDai: any, timeTillMaturity: any, initialRate: any, currentRate: any): any {
+export function buyFYDaiNormalized(
+  vyDaiReserves: any,
+  fyDaiReserves: any,
+  fyDai: any,
+  timeTillMaturity: any,
+  initialRate: any,
+  currentRate: any
+): any {
   const c0 = bignumber(initialRate)
   const invC0 = divide(1, c0)
 
-  return multiply(invC0, buyFYDai(
-    multiply(bignumber(vyDaiReserves), c0),
-    fyDaiReserves,
-    fyDai,
-    timeTillMaturity,
-    divide(bignumber(currentRate), c0)
-  ))
+  return multiply(
+    invC0,
+    buyFYDai(
+      multiply(bignumber(vyDaiReserves), c0),
+      fyDaiReserves,
+      fyDai,
+      timeTillMaturity,
+      divide(bignumber(currentRate), c0)
+    )
+  )
 }
