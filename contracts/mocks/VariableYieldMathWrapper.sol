@@ -94,6 +94,102 @@ contract VariableYieldMathWrapper {
   }
 
   /**
+   * Calculate the amount of fyDai a user would get for given amount of VYDai.
+   * A normalization parameter is taken to normalize the exchange rate at a certain value.
+   * This is used for liquidity pools to be initialized with balanced reserves.
+   * @param vyDaiReserves VYDai reserves amount
+   * @param fyDaiReserves fyDai reserves amount
+   * @param vyDaiAmount VYDai amount to be traded
+   * @param timeTillMaturity time till maturity in seconds
+   * @param k time till maturity coefficient, multiplied by 2^64
+   * @param g fee coefficient, multiplied by 2^64
+   * @param c0 price of VYDai in terms of VYDai as it was at protocol
+   *        initialization time, multiplied by 2^64
+   * @param c price of VYDai in terms of VYDai, multiplied by 2^64
+   * @return the amount of fyDai a user would get for given amount of VYDai
+   */
+  function fyDaiOutForVYDaiInNormalized(
+    uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount,
+    uint128 timeTillMaturity, int128 k, int128 g, int128 c0, int128 c)
+  public pure returns(uint128) {
+    return VariableYieldMath.fyDaiOutForVYDaiInNormalized(
+      vyDaiReserves, fyDaiReserves, vyDaiAmount, timeTillMaturity, k, g, c0, c
+    );
+  }
+
+  /**
+   * Calculate the amount of VYDai a user would get for certain amount of fyDai.
+   * A normalization parameter is taken to normalize the exchange rate at a certain value.
+   * This is used for liquidity pools to be initialized with balanced reserves.
+   * @param vyDaiReserves VYDai reserves amount
+   * @param fyDaiReserves fyDai reserves amount
+   * @param fyDaiAmount fyDai amount to be traded
+   * @param timeTillMaturity time till maturity in seconds
+   * @param k time till maturity coefficient, multiplied by 2^64
+   * @param g fee coefficient, multiplied by 2^64
+   * @param c0 price of VYDai in terms of VYDai as it was at protocol
+   *        initialization time, multiplied by 2^64
+   * @param c price of VYDai in terms of VYDai, multiplied by 2^64
+   * @return the amount of VYDai a user would get for given amount of fyDai
+   */
+  function vyDaiOutForFYDaiInNormalized(
+    uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount,
+    uint128 timeTillMaturity, int128 k, int128 g, int128 c0, int128 c)
+  public pure returns(uint128) {
+    return VariableYieldMath.vyDaiOutForFYDaiInNormalized(
+      vyDaiReserves, fyDaiReserves, fyDaiAmount, timeTillMaturity, k, g, c0, c
+    );
+  }
+
+  /**
+   * Calculate the amount of fyDai a user could sell for given amount of VYDai.
+   * 
+   * @param vyDaiReserves VYDai reserves amount
+   * @param fyDaiReserves fyDai reserves amount
+   * @param vyDaiAmount VYDai amount to be traded
+   * @param timeTillMaturity time till maturity in seconds
+   * @param k time till maturity coefficient, multiplied by 2^64
+   * @param g fee coefficient, multiplied by 2^64
+   * @param c0 price of VYDai in terms of VYDai as it was at protocol
+   *        initialization time, multiplied by 2^64
+   * @param c price of VYDai in terms of VYDai, multiplied by 2^64
+   * @return the amount of fyDai a user could sell for given amount of VYDai
+   */
+  function fyDaiInForVYDaiOutNormalized(
+    uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount,
+    uint128 timeTillMaturity, int128 k, int128 g, int128 c0, int128 c)
+  public pure returns(uint128) {
+    return VariableYieldMath.fyDaiInForVYDaiOutNormalized(
+      vyDaiReserves, fyDaiReserves, vyDaiAmount, timeTillMaturity, k, g, c0, c
+    );
+  }
+
+  /**
+   * Calculate the amount of VYDai a user would have to pay for certain amount of
+   * fyDai.
+   *
+   * @param vyDaiReserves VYDai reserves amount
+   * @param fyDaiReserves fyDai reserves amount
+   * @param fyDaiAmount fyDai amount to be traded
+   * @param timeTillMaturity time till maturity in seconds
+   * @param k time till maturity coefficient, multiplied by 2^64
+   * @param g fee coefficient, multiplied by 2^64
+   * @param c0 price of VYDai in terms of VYDai as it was at protocol
+   *        initialization time, multiplied by 2^64
+   * @param c price of VYDai in terms of VYDai, multiplied by 2^64
+   * @return the amount of VYDai a user would have to pay for given amount of
+   *         fyDai
+   */
+  function vyDaiInForFYDaiOutNormalized(
+    uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount,
+    uint128 timeTillMaturity, int128 k, int128 g, int128 c0, int128 c)
+  public pure returns(uint128) {
+    return VariableYieldMath.vyDaiInForFYDaiOutNormalized(
+      vyDaiReserves, fyDaiReserves, fyDaiAmount, timeTillMaturity, k, g, c0, c
+    );
+  }
+
+  /**
    * Raise given number x into power specified as a simple fraction y/z and then
    * multiply the result by the normalization factor 2^(128 *(1 - y/z)).
    * Revert if z is zero, or if both x and y are zeros.

@@ -6,9 +6,31 @@ import { Contract } from './shared/fixtures'
 // @ts-ignore
 import { BN } from '@openzeppelin/test-helpers'
 import { expect } from 'chai'
-const { bignumber, add, subtract, multiply, divide, pow, floor } = require('mathjs')
+// const { bignumber, add, subtract, multiply, divide, pow, floor } = require('mathjs')
+import { sellVYDai, sellFYDai, buyVYDai, buyFYDai } from './shared/yieldspace'
+const { floor } = require('mathjs')
 
-function toBigNumber(x: any) {
+const ONE = new BN('1')
+const TWO = new BN('2')
+const THREE = new BN('3')
+const FOUR = new BN('4')
+const TEN = new BN('10')
+const TWENTY = new BN('20')
+
+const MAX = new BN('340282366920938463463374607431768211455') // type(uint128).max
+const OneToken = new BN('1000000000000000000') // 1e18
+const ONE64 = new BN('18446744073709551616') // In 64.64 format
+const secondsInOneYear = new BN(60 * 60 * 24 * 365) // Seconds in 4 years
+const secondsInFourYears = secondsInOneYear.mul(FOUR) // Seconds in 4 years
+const k = ONE64.div(secondsInFourYears)
+
+const g0 = ONE64 // No fees
+const g1 = new BN('950').mul(ONE64).div(new BN('1000')) // Sell vyDai to the pool
+const g2 = new BN('1000').mul(ONE64).div(new BN('950')) // Sell fyDai to the pool
+
+const PRECISION = new BN('100000000000000') // 1e14
+
+function toBigNumber(x: any): BN {
   if (typeof x == 'object') x = x.toString()
   if (typeof x == 'number') return new BN(x)
   else if (typeof x == 'string') {
@@ -17,98 +39,8 @@ function toBigNumber(x: any) {
   }
 }
 
-// https://www.desmos.com/calculator/5nf2xuy6yb
-function sellVYDai(vyDaiReserves: any, fyDaiReserves: any, vyDai: any, timeTillMaturity: any, rate: any) {
-  const fee = bignumber(1000000000000)
-  const Z = bignumber(vyDaiReserves)
-  const Y = bignumber(fyDaiReserves)
-  const T = bignumber(timeTillMaturity)
-  const x = bignumber(vyDai)
-  const c = bignumber(rate)
-  const k = bignumber(1 / (4 * 365 * 24 * 60 * 60)) // 1 / seconds in four years
-  const g = bignumber(950 / 1000)
-  const t = multiply(k, T)
-  const a = subtract(1, multiply(g, t))
-  const invA = divide(1, a)
-  const Za = multiply(c, pow(Z, a))
-  const Ya = pow(Y, a)
-  const Zxa = multiply(c, pow(add(Z, x), a))
-  const sum = subtract(add(Za, Ya), Zxa)
-  const y = subtract(Y, pow(sum, invA))
-  const yFee = subtract(y, fee)
-
-  return yFee
-}
-
-// https://www.desmos.com/calculator/6jlrre7ybt
-function sellFYDai(vyDaiReserves: any, fyDaiReserves: any, fyDai: any, timeTillMaturity: any, rate: any) {
-  const fee = bignumber(1000000000000)
-  const Z = bignumber(vyDaiReserves)
-  const Y = bignumber(fyDaiReserves)
-  const T = bignumber(timeTillMaturity)
-  const x = bignumber(fyDai)
-  const c = bignumber(rate)
-  const k = bignumber(1 / (4 * 365 * 24 * 60 * 60)) // 1 / seconds in four years
-  const g = bignumber(1000 / 950)
-  const t = multiply(k, T)
-  const a = subtract(1, multiply(g, t))
-  const invA = divide(1, a)
-  const invC = divide(1, c)
-  const Za = multiply(c, pow(Z, a))
-  const Ya = pow(Y, a)
-  const Yxa = pow(add(Y, x), a)
-  const sum = add(Za, subtract(Ya, Yxa))
-  const y = subtract(Z,  pow(multiply(invC, sum), invA))
-  const yFee = subtract(y, fee)
-
-  return yFee
-}
-
-// https://www.desmos.com/calculator/0rgnmtckvy
-function buyVYDai(vyDaiReserves: any, fyDaiReserves: any, vyDai: any, timeTillMaturity: any, rate: any) {
-  const fee = bignumber(1000000000000)
-  const Z = bignumber(vyDaiReserves)
-  const Y = bignumber(fyDaiReserves)
-  const T = bignumber(timeTillMaturity)
-  const x = bignumber(vyDai)
-  const c = bignumber(rate)
-  const k = bignumber(1 / (4 * 365 * 24 * 60 * 60)) // 1 / seconds in four years
-  const g = bignumber(1000 / 950)
-  const t = multiply(k, T)
-  const a = subtract(1, multiply(g, t))
-  const invA = divide(1, a)
-  const Za = multiply(c, pow(Z, a))
-  const Ya = pow(Y, a)
-  const Zxa = multiply(c, pow(subtract(Z, x), a))
-  const sum = subtract(add(Za, Ya), Zxa)
-  const y = subtract(pow(sum, invA), Y)
-  const yFee = add(y, fee)
-
-  return yFee
-}
-
-// https://www.desmos.com/calculator/ws5oqj8x5i
-function buyFYDai(vyDaiReserves: any, fyDaiReserves: any, fyDai: any, timeTillMaturity: any, rate: any) {
-  const fee = bignumber(1000000000000)
-  const Z = bignumber(vyDaiReserves)
-  const Y = bignumber(fyDaiReserves)
-  const T = bignumber(timeTillMaturity)
-  const x = bignumber(fyDai)
-  const c = bignumber(rate)
-  const k = bignumber(1 / (4 * 365 * 24 * 60 * 60)) // 1 / seconds in four years
-  const g = bignumber(950 / 1000)
-  const t = multiply(k, T)
-  const a = subtract(1, multiply(g, t))
-  const invA = divide(1, a)
-  const invC = divide(1, c)
-  const Za = multiply(c, pow(Z, a))
-  const Ya = pow(Y, a)
-  const Yxa = pow(subtract(Y, x), a)
-  const sum = add(Za, subtract(Ya, Yxa))
-  const y = subtract(pow(multiply(invC, sum), invA), Z)
-  const yFee = add(y, fee)
-
-  return yFee
+function decTo6464(x: any): BN {
+  return new BN((Number(x) * 10000).toString()).mul(ONE64).div(new BN('10000'))
 }
 
 function almostEqual(x: any, y: any, p: any) {
@@ -125,26 +57,6 @@ contract('VariableYieldMath - Surface', async (accounts) => {
   let snapshotId: string
 
   let yieldMath: Contract
-
-  const ONE = new BN('1')
-  const TWO = new BN('2')
-  const THREE = new BN('3')
-  const FOUR = new BN('4')
-  const TEN = new BN('10')
-  const TWENTY = new BN('20')
-
-  const MAX = new BN('340282366920938463463374607431768211455') // type(uint128).max
-  const OneToken = new BN('1000000000000000000') // 1e18
-  const ONE64 = new BN('18446744073709551616') // In 64.64 format
-  const secondsInOneYear = new BN(60 * 60 * 24 * 365) // Seconds in 4 years
-  const secondsInFourYears = secondsInOneYear.mul(FOUR) // Seconds in 4 years
-  const k = ONE64.div(secondsInFourYears)
-
-  const g0 = ONE64 // No fees
-  const g1 = new BN('950').mul(ONE64).div(new BN('1000')) // Sell vyDai to the pool
-  const g2 = new BN('1000').mul(ONE64).div(new BN('950')) // Sell fyDai to the pool
-
-  const PRECISION = new BN('100000000000000') // 1e14
 
   const vyDaiReserves = [
     // '100000000000000000000000',
@@ -206,7 +118,7 @@ contract('VariableYieldMath - Surface', async (accounts) => {
                 console.log(`vyDaiReserve, fyDaiReserveDelta, tradeSize, timeTillMaturity, exchangeRate`)
                 console.log(`${vyDaiReserve}, ${fyDaiReserveDelta}, ${tradeSize}, ${timeTillMaturity}, ${exchangeRate}`)
                 const fyDaiReserve = new BN(vyDaiReserve).add(new BN(fyDaiReserveDelta)).toString()
-                const bnRate = new BN((Number(exchangeRate) * 100).toString()).mul(ONE64).div(new BN('100'))
+                const bnRate = decTo6464(exchangeRate)
                 let offChain, onChain
                 offChain = sellFYDai(vyDaiReserve, fyDaiReserve, tradeSize, timeTillMaturity, exchangeRate)
                 onChain = await yieldMath.vyDaiOutForFYDaiIn(
