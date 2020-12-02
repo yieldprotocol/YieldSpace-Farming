@@ -368,7 +368,7 @@ library VariableYieldMath {
 
     // sum = za + ya - zxa
     uint256 sum = za + ya - zxa; // z < MAX, y < MAX, a < 1. It can only underflow, not overflow.
-    require(sum <= MAX, "YieldMath: Insufficient vyDai reserves"); // Error doesn't make sense
+    require(sum <= MAX, "YieldMath: Insufficient fyDai reserves");
 
     // result = fyDaiReserves - (sum ** (1/a))
     uint256 result = uint256(fyDaiReserves) - uint256(uint128(sum).pow(ONE, a));
@@ -422,7 +422,7 @@ library VariableYieldMath {
 
     // sum = za + ya - yxa
     uint256 sum = za + ya - yxa; // z < MAX, y < MAX, a < 1. It can only underflow, not overflow.
-    require(sum <= MAX, "YieldMath: Insufficient fyDai reserves"); // Error doesn't make sense
+    require(sum <= MAX, "YieldMath: Insufficient vyDai reserves");
 
     // (1/c) * sum
     uint256 invCsum = invC.mulu(sum);
@@ -478,7 +478,7 @@ library VariableYieldMath {
 
     // sum = za + ya - zxa
     uint256 sum = za + ya - zxa; // z < MAX, y < MAX, a < 1. It can only underflow, not overflow.
-    require(sum <= MAX, "YieldMath: Insufficient vyDai reserves");
+    require(sum <= MAX, "YieldMath: Resulting fyDai reserves too high");
 
     // result = (sum ** (1/a)) - fyDaiReserves
     uint256 result = uint256(uint128(sum).pow(ONE, a)) - uint256(fyDaiReserves);
@@ -533,7 +533,7 @@ library VariableYieldMath {
 
     // sum = za + ya - yxa
     uint256 sum = za + ya - yxa; // z < MAX, y < MAX, a < 1. It can only underflow, not overflow.
-    require(sum <= MAX, "YieldMath: Insufficient fyDai reserves");
+    require(sum <= MAX, "YieldMath: Resulting vyDai reserves too high");
 
     // (1/c) * sum
     uint256 invCsum = invC.mulu(sum);
