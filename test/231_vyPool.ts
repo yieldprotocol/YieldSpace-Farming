@@ -1,14 +1,36 @@
 const VYPool = artifacts.require('VYPool')
 const VYDai = artifacts.require('VYDaiMock')
 
+const { bignumber, floor, multiply } = require('mathjs')
 import { keccak256, toUtf8Bytes } from 'ethers/lib/utils'
 // @ts-ignore
 import helper from 'ganache-time-traveler'
 import { toWad, toRay, mulRay } from './shared/utils'
 import { YieldEnvironmentLite, Contract } from './shared/fixtures'
+import { sellVYDaiNormalized, sellFYDaiNormalized, buyVYDaiNormalized, buyFYDaiNormalized } from './shared/yieldspace'
 // @ts-ignore
 import { BN, expectRevert } from '@openzeppelin/test-helpers'
 import { assert, expect } from 'chai'
+
+const ONE64 = new BN('18446744073709551616') // In 64.64 format
+
+function toBigNumber(x: any) {
+  if (typeof x == 'object') x = x.toString()
+  if (typeof x == 'number') return new BN(x)
+  else if (typeof x == 'string') {
+    if (x.startsWith('0x') || x.startsWith('0X')) return new BN(x.substring(2), 16)
+    else return new BN(x)
+  }
+}
+
+function almostEqual(x: any, y: any, p: any) {
+  // Check that abs(x - y) < p:
+  const xb = toBigNumber(x)
+  const yb = toBigNumber(y)
+  const pb = toBigNumber(p)
+  const diff = xb.gt(yb) ? xb.sub(yb) : yb.sub(xb)
+  expect(diff).to.be.bignumber.lt(pb)
+}
 
 contract('Pool', async (accounts) => {
   let [owner, user1, user2, operator, from, to] = accounts
@@ -59,34 +81,6 @@ contract('Pool', async (accounts) => {
     await helper.revertToSnapshot(snapshotId)
   })
 
-  it('get the size of the contract', async () => {
-    console.log()
-    console.log('    ·--------------------|------------------|------------------|------------------·')
-    console.log('    |  Contract          ·  Bytecode        ·  Deployed        ·  Constructor     |')
-    console.log('    ·····················|··················|··················|···················')
-
-    const bytecode = pool.constructor._json.bytecode
-    const deployed = pool.constructor._json.deployedBytecode
-    const sizeOfB = bytecode.length / 2
-    const sizeOfD = deployed.length / 2
-    const sizeOfC = sizeOfB - sizeOfD
-    console.log(
-      '    |  ' +
-        pool.constructor._json.contractName.padEnd(18, ' ') +
-        '|' +
-        ('' + sizeOfB).padStart(16, ' ') +
-        '  ' +
-        '|' +
-        ('' + sizeOfD).padStart(16, ' ') +
-        '  ' +
-        '|' +
-        ('' + sizeOfC).padStart(16, ' ') +
-        '  |'
-    )
-    console.log('    ·--------------------|------------------|------------------|------------------·')
-    console.log()
-  })
-
   it('should setup pool', async () => {
     const b = new BN('18446744073709551615')
     const k = b.div(new BN('126144000'))
@@ -130,64 +124,58 @@ contract('Pool', async (accounts) => {
     })
 
     it('sells fyDai', async () => {
-      const oneToken = toWad(1)
-      await fyDai1.mint(from, oneToken, { from: owner })
-
-      // daiOutForFYDaiIn formula: https://www.desmos.com/calculator/7knilsjycu
-
-      console.log('          selling fyDai...')
-      console.log('          daiReserves: %d', await pool.getVYDaiReserves())
-      console.log('          fyDaiReserves: %d', await pool.getFYDaiReserves())
-      console.log('          fyDaiIn: %d', oneToken.toString())
-      console.log('          k: %d', await pool.k())
-      console.log('          g2: %d', await pool.g2())
-      const t = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
-      console.log('          timeTillMaturity: %d', new BN(maturity1).sub(t).toString())
+      const vyDaiReserves = await pool.getVYDaiReserves()
+      const fyDaiReserves = await pool.getFYDaiReserves()
+      const fyDaiIn = new BN(toWad(1).toString())
+      const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
+      const timeTillMaturity = (new BN(maturity1)).sub(now)
 
       assert.equal(
         await vyDai.balanceOf(to),
         0,
-        "'To' wallet should have no dai, instead has " + (await vyDai.balanceOf(to))
+        "'To' wallet should have no vyDai, instead has " + (await vyDai.balanceOf(to))
       )
 
       // Test preview since we are here
-      const daiOutPreview = await pool.sellFYDaiPreview(oneToken, { from: operator })
+      const vyDaiOutPreview = await pool.sellFYDaiPreview(fyDaiIn, { from: operator })
+
+      const expectedVYDaiOut = sellFYDaiNormalized(
+        vyDaiReserves.toString(),
+        fyDaiReserves.toString(),
+        fyDaiIn.toString(),
+        timeTillMaturity.toString(),
+        '1.0',
+        '1.0'
+      )
 
       await pool.addDelegate(operator, { from: from })
-      await fyDai1.approve(pool.address, oneToken, { from: from })
-      const event = (await pool.sellFYDai(from, to, oneToken, { from: operator })).logs[3]
-
-      const expectedDaiOut = new BN(oneToken.toString()).mul(new BN('99732')).div(new BN('100000'))
-      const daiOut = new BN(await vyDai.balanceOf(to))
+      await fyDai1.mint(from, fyDaiIn, { from: owner })
+      await fyDai1.approve(pool.address, fyDaiIn, { from: from })
+      const tx = (await pool.sellFYDai(from, to, fyDaiIn, { from: operator }))
+      const event = tx.logs[tx.logs.length - 1]
 
       assert.equal(event.event, 'Trade')
       assert.equal(event.args.from, from)
       assert.equal(event.args.to, to)
       assert.equal(event.args.vyDaiTokens, (await vyDai.balanceOf(to)).toString())
-      assert.equal(event.args.fyDaiTokens, oneToken.mul(-1).toString())
+      assert.equal(event.args.fyDaiTokens, fyDaiIn.mul(new BN('-1')).toString())
 
       assert.equal(await fyDai1.balanceOf(from), 0, "'From' wallet should have no fyDai tokens")
+      
+      const vyDaiOut = new BN(await vyDai.balanceOf(to))
 
-      expect(daiOut).to.be.bignumber.gt(expectedDaiOut.mul(new BN('9999')).div(new BN('10000')))
-      expect(daiOut).to.be.bignumber.lt(expectedDaiOut.mul(new BN('10001')).div(new BN('10000')))
-      expect(daiOut).to.be.bignumber.gt(daiOutPreview.mul(new BN('9999')).div(new BN('10000')))
-      expect(daiOut).to.be.bignumber.lt(daiOutPreview.mul(new BN('10001')).div(new BN('10000')))
+      almostEqual(vyDaiOut, floor(expectedVYDaiOut).toFixed(), fyDaiIn.div(new BN('1000000')))
+      almostEqual(vyDaiOutPreview, floor(expectedVYDaiOut).toFixed(), fyDaiIn.div(new BN('1000000')))
     })
 
-    it('buys dai', async () => {
-      const oneToken = toWad(1)
+    it('buys vyDai', async () => {
+      const vyDaiReserves = await pool.getVYDaiReserves()
+      const fyDaiReserves = await pool.getFYDaiReserves()
+      const vyDaiOut = new BN(toWad(1).toString())
+      const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
+      const timeTillMaturity = (new BN(maturity1)).sub(now)
+
       await fyDai1.mint(from, fyDaiTokens1, { from: owner })
-
-      // fyDaiInForDaiOut formula: https://www.desmos.com/calculator/c1scsshbzh
-
-      console.log('          buying vyDai...')
-      console.log('          daiReserves: %d', await pool.getVYDaiReserves())
-      console.log('          fyDaiReserves: %d', await pool.getFYDaiReserves())
-      console.log('          daiOut: %d', oneToken.toString())
-      console.log('          k: %d', await pool.k())
-      console.log('          g2: %d', await pool.g2())
-      const t = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
-      console.log('          timeTillMaturity: %d', new BN(maturity1).sub(t).toString())
 
       assert.equal(
         await fyDai1.balanceOf(from),
@@ -198,25 +186,32 @@ contract('Pool', async (accounts) => {
       // Test preview since we are here
       const fyDaiInPreview = await pool.buyVYDaiPreview(oneToken, { from: operator })
 
+      const expectedFYDaiIn = buyVYDaiNormalized(
+        vyDaiReserves.toString(),
+        fyDaiReserves.toString(),
+        vyDaiOut.toString(),
+        timeTillMaturity.toString(),
+        '1.0',
+        '1.0'
+      )
+
       await pool.addDelegate(operator, { from: from })
       await fyDai1.approve(pool.address, fyDaiTokens1, { from: from })
-      const event = (await pool.buyVYDai(from, to, oneToken, { from: operator })).logs[3]
+      const tx = (await pool.buyVYDai(from, to, vyDaiOut, { from: operator }))
+      const event = tx.logs[tx.logs.length - 1]
 
-      const expectedFYDaiIn = new BN(oneToken.toString()).mul(new BN('100270')).div(new BN('100000'))
       const fyDaiIn = new BN(fyDaiTokens1.toString()).sub(new BN(await fyDai1.balanceOf(from)))
 
       assert.equal(event.event, 'Trade')
       assert.equal(event.args.from, from)
       assert.equal(event.args.to, to)
-      assert.equal(event.args.vyDaiTokens, oneToken.toString())
+      assert.equal(event.args.vyDaiTokens, vyDaiOut.toString())
       assert.equal(event.args.fyDaiTokens, fyDaiIn.mul(new BN('-1')).toString())
 
-      assert.equal(await vyDai.balanceOf(to), oneToken.toString(), 'Receiver account should have 1 dai token')
+      assert.equal(await vyDai.balanceOf(to), vyDaiOut.toString(), 'Receiver account should have 1 dai token')
 
-      expect(fyDaiIn).to.be.bignumber.gt(expectedFYDaiIn.mul(new BN('9999')).div(new BN('10000')))
-      expect(fyDaiIn).to.be.bignumber.lt(expectedFYDaiIn.mul(new BN('10001')).div(new BN('10000')))
-      expect(fyDaiIn).to.be.bignumber.gt(fyDaiInPreview.mul(new BN('9999')).div(new BN('10000')))
-      expect(fyDaiIn).to.be.bignumber.lt(fyDaiInPreview.mul(new BN('10001')).div(new BN('10000')))
+      almostEqual(fyDaiIn, floor(expectedFYDaiIn).toFixed(), vyDaiOut.div(new BN('1000000')))
+      almostEqual(fyDaiInPreview, floor(expectedFYDaiIn).toFixed(), vyDaiOut.div(new BN('1000000')))
     })
 
     describe('with extra fyDai reserves', () => {
@@ -285,10 +280,10 @@ contract('Pool', async (accounts) => {
         const event = tx.logs[tx.logs.length - 1]
 
         const expectedFYDaiOut = new BN('351307189540000000')
-        const expectedDaiOut = new BN('678777437820000000')
+        const expectedVYDaiOut = new BN('678777437820000000')
 
         const fyDaiOut = fyDaiReservesBefore.sub(new BN(await fyDai1.balanceOf(pool.address)))
-        const daiOut = daiReservesBefore.sub(new BN(await vyDai.balanceOf(pool.address)))
+        const vyDaiOut = daiReservesBefore.sub(new BN(await vyDai.balanceOf(pool.address)))
 
         assert.equal(event.event, 'Liquidity')
         assert.equal(event.args.from, user1)
@@ -298,27 +293,19 @@ contract('Pool', async (accounts) => {
         expect(fyDaiOut).to.be.bignumber.gt(expectedFYDaiOut.mul(new BN('9999')).div(new BN('10000')))
         expect(fyDaiOut).to.be.bignumber.lt(expectedFYDaiOut.mul(new BN('10001')).div(new BN('10000')))
 
-        expect(daiOut).to.be.bignumber.gt(expectedDaiOut.mul(new BN('9999')).div(new BN('10000')))
-        expect(daiOut).to.be.bignumber.lt(expectedDaiOut.mul(new BN('10001')).div(new BN('10000')))
+        expect(vyDaiOut).to.be.bignumber.gt(expectedVYDaiOut.mul(new BN('9999')).div(new BN('10000')))
+        expect(vyDaiOut).to.be.bignumber.lt(expectedVYDaiOut.mul(new BN('10001')).div(new BN('10000')))
 
         assert.equal(event.args.fyDaiTokens, fyDaiOut.toString())
-        assert.equal(event.args.vyDaiTokens, daiOut.toString())
+        assert.equal(event.args.vyDaiTokens, vyDaiOut.toString())
       })
 
-      it('sells dai', async () => {
-        const oneToken = toWad(1)
-        await vyDai.mint(from, daiTokens1)
-
-        // fyDaiOutForDaiIn formula: https://www.desmos.com/calculator/8eczy19er3
-
-        console.log('          selling vyDai...')
-        console.log('          daiReserves: %d', await pool.getVYDaiReserves())
-        console.log('          fyDaiReserves: %d', await pool.getFYDaiReserves())
-        console.log('          daiIn: %d', oneToken.toString())
-        console.log('          k: %d', await pool.k())
-        console.log('          g1: %d', await pool.g1())
-        const t = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
-        console.log('          timeTillMaturity: %d', new BN(maturity1).sub(t).toString())
+      it('sells vyDai', async () => {
+        const vyDaiReserves = await pool.getVYDaiReserves()
+        const fyDaiReserves = await pool.getFYDaiReserves()
+        const vyDaiIn = new BN(toWad(1).toString())
+        const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
+        const timeTillMaturity = (new BN(maturity1)).sub(now)
 
         assert.equal(
           await fyDai1.balanceOf(to),
@@ -329,45 +316,45 @@ contract('Pool', async (accounts) => {
         // Test preview since we are here
         const fyDaiOutPreview = await pool.sellVYDaiPreview(oneToken, { from: operator })
 
-        await pool.addDelegate(operator, { from: from })
-        await vyDai.approve(pool.address, oneToken, { from: from })
-        const event = (await pool.sellVYDai(from, to, oneToken, { from: operator })).logs[3]
+        const expectedFYDaiOut = sellVYDaiNormalized(
+          vyDaiReserves.toString(),
+          fyDaiReserves.toString(),
+          vyDaiIn.toString(),
+          timeTillMaturity.toString(),
+          '1.0',
+          '1.0'
+        )
 
-        const expectedFYDaiOut = new BN(oneToken.toString()).mul(new BN('117440')).div(new BN('100000'))
+        await pool.addDelegate(operator, { from: from })
+        await vyDai.mint(from, vyDaiIn)
+        await vyDai.approve(pool.address, vyDaiIn, { from: from })
+        const tx = (await pool.sellVYDai(from, to, vyDaiIn, { from: operator }))
+        const event = tx.logs[tx.logs.length - 1]
+
         const fyDaiOut = new BN(await fyDai1.balanceOf(to))
 
         assert.equal(event.event, 'Trade')
         assert.equal(event.args.from, from)
         assert.equal(event.args.to, to)
-        assert.equal(event.args.vyDaiTokens, oneToken.mul(-1).toString())
+        assert.equal(event.args.vyDaiTokens, vyDaiIn.mul(new BN('-1')).toString())
         assert.equal(event.args.fyDaiTokens, fyDaiOut.toString())
 
         assert.equal(
           await vyDai.balanceOf(from),
-          daiTokens1.sub(oneToken).toString(),
-          "'From' wallet should have " + daiTokens1.sub(oneToken) + ' dai tokens'
+          0,
+          "'From' wallet should have no vyDai tokens"
         )
 
-        expect(fyDaiOut).to.be.bignumber.gt(expectedFYDaiOut.mul(new BN('9999')).div(new BN('10000')))
-        expect(fyDaiOut).to.be.bignumber.lt(expectedFYDaiOut.mul(new BN('10001')).div(new BN('10000')))
-        expect(fyDaiOut).to.be.bignumber.gt(fyDaiOutPreview.mul(new BN('9999')).div(new BN('10000')))
-        expect(fyDaiOut).to.be.bignumber.lt(fyDaiOutPreview.mul(new BN('10001')).div(new BN('10000')))
+        almostEqual(fyDaiOut, floor(expectedFYDaiOut).toFixed(), vyDaiIn.div(new BN('1000000')))
+        almostEqual(fyDaiOutPreview, floor(expectedFYDaiOut).toFixed(), vyDaiIn.div(new BN('1000000')))
       })
 
       it('buys fyDai', async () => {
-        const oneToken = toWad(1)
-        await vyDai.mint(from, daiTokens1)
-
-        // daiInForFYDaiOut formula: https://www.desmos.com/calculator/grjod0grzp
-
-        console.log('          buying fyDai...')
-        console.log('          daiReserves: %d', await pool.getVYDaiReserves())
-        console.log('          fyDaiReserves: %d', await pool.getFYDaiReserves())
-        console.log('          fyDaiOut: %d', oneToken.toString())
-        console.log('          k: %d', await pool.k())
-        console.log('          g1: %d', await pool.g1())
-        const t = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
-        console.log('          timeTillMaturity: %d', new BN(maturity1).sub(t).toString())
+        const vyDaiReserves = await pool.getVYDaiReserves()
+        const fyDaiReserves = await pool.getFYDaiReserves()
+        const fyDaiOut = new BN(toWad(1).toString())
+        const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
+        const timeTillMaturity = (new BN(maturity1)).sub(now)
 
         assert.equal(
           await fyDai1.balanceOf(to),
@@ -376,27 +363,35 @@ contract('Pool', async (accounts) => {
         )
 
         // Test preview since we are here
-        const daiInPreview = await pool.buyFYDaiPreview(oneToken, { from: operator })
+        const vyDaiInPreview = await pool.buyFYDaiPreview(fyDaiOut, { from: operator })
+
+        const expectedVYDaiIn = buyFYDaiNormalized(
+          vyDaiReserves.toString(),
+          fyDaiReserves.toString(),
+          fyDaiOut.toString(),
+          timeTillMaturity.toString(),
+          '1.0',
+          '1.0'
+        )
 
         await pool.addDelegate(operator, { from: from })
+        await vyDai.mint(from, daiTokens1)
         await vyDai.approve(pool.address, daiTokens1, { from: from })
-        const event = (await pool.buyFYDai(from, to, oneToken, { from: operator })).logs[3]
+        const tx = await pool.buyFYDai(from, to, fyDaiOut, { from: operator })
+        const event = tx.logs[tx.logs.length - 1]
 
-        const expectedDaiIn = new BN(oneToken.toString()).mul(new BN('85110')).div(new BN('100000'))
-        const daiIn = new BN(daiTokens1.toString()).sub(new BN(await vyDai.balanceOf(from)))
+        const vyDaiIn = new BN(daiTokens1.toString()).sub(new BN(await vyDai.balanceOf(from)))
 
         assert.equal(event.event, 'Trade')
         assert.equal(event.args.from, from)
         assert.equal(event.args.to, to)
-        assert.equal(event.args.vyDaiTokens, daiIn.mul(new BN('-1')).toString())
-        assert.equal(event.args.fyDaiTokens, oneToken.toString())
+        assert.equal(event.args.vyDaiTokens, vyDaiIn.mul(new BN('-1')).toString())
+        assert.equal(event.args.fyDaiTokens, fyDaiOut.toString())
 
         assert.equal(await fyDai1.balanceOf(to), oneToken.toString(), "'To' wallet should have 1 fyDai token")
 
-        expect(daiIn).to.be.bignumber.gt(expectedDaiIn.mul(new BN('9999')).div(new BN('10000')))
-        expect(daiIn).to.be.bignumber.lt(expectedDaiIn.mul(new BN('10001')).div(new BN('10000')))
-        expect(daiIn).to.be.bignumber.gt(daiInPreview.mul(new BN('9999')).div(new BN('10000')))
-        expect(daiIn).to.be.bignumber.lt(daiInPreview.mul(new BN('10001')).div(new BN('10000')))
+        almostEqual(vyDaiIn, floor(expectedVYDaiIn).toFixed(), vyDaiIn.div(new BN('1000000')))
+        almostEqual(vyDaiInPreview, floor(expectedVYDaiIn).toFixed(), vyDaiIn.div(new BN('1000000')))
       })
     })
 
