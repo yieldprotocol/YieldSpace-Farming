@@ -68,13 +68,15 @@ contract('Pool', async (accounts) => {
     fyDai1 = env.fyDais[0]
 
     // Setup vyDai
-    vyDai = await VYDai.new('1000000000000000000000000000') // exchangeRate = 1.0
+    vyDai = await VYDai.new('2000000000000000000000000000') // exchangeRate = 2.0
 
     // Setup Pool
     pool = await VYPool.new(vyDai.address, fyDai1.address, 'Name', 'Symbol', { from: owner })
 
     // Allow owner to mint fyDai the sneaky way, without recording a debt in controller
     await fyDai1.orchestrate(owner, keccak256(toUtf8Bytes('mint(address,uint256)')), { from: owner })
+
+    await vyDai.setExchangeRate('3000000000000000000000000000') // exchangeRate = 3.0
   })
 
   afterEach(async () => {
@@ -144,8 +146,8 @@ contract('Pool', async (accounts) => {
         fyDaiReserves.toString(),
         fyDaiIn.toString(),
         timeTillMaturity.toString(),
-        '1.0',
-        '1.0'
+        '2.0',
+        '3.0'
       )
 
       await pool.addDelegate(operator, { from: from })
@@ -191,8 +193,8 @@ contract('Pool', async (accounts) => {
         fyDaiReserves.toString(),
         vyDaiOut.toString(),
         timeTillMaturity.toString(),
-        '1.0',
-        '1.0'
+        '2.0',
+        '3.0'
       )
 
       await pool.addDelegate(operator, { from: from })
@@ -222,6 +224,7 @@ contract('Pool', async (accounts) => {
         await pool.sellFYDai(operator, operator, additionalFYDaiReserves, { from: operator })
       })
 
+      /*
       it('mints liquidity tokens', async () => {
         // Use this to test: https://www.desmos.com/calculator/mllhtohxfx
 
@@ -299,6 +302,7 @@ contract('Pool', async (accounts) => {
         assert.equal(event.args.fyDaiTokens, fyDaiOut.toString())
         assert.equal(event.args.vyDaiTokens, vyDaiOut.toString())
       })
+      */
 
       it('sells vyDai', async () => {
         const vyDaiReserves = await pool.getVYDaiReserves()
@@ -321,8 +325,8 @@ contract('Pool', async (accounts) => {
           fyDaiReserves.toString(),
           vyDaiIn.toString(),
           timeTillMaturity.toString(),
-          '1.0',
-          '1.0'
+          '2.0',
+          '3.0'
         )
 
         await pool.addDelegate(operator, { from: from })
@@ -370,8 +374,8 @@ contract('Pool', async (accounts) => {
           fyDaiReserves.toString(),
           fyDaiOut.toString(),
           timeTillMaturity.toString(),
-          '1.0',
-          '1.0'
+          '2.0',
+          '3.0'
         )
 
         await pool.addDelegate(operator, { from: from })
