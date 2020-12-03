@@ -10,6 +10,7 @@ import "./interfaces/IPot.sol";
 import "./interfaces/IFYDai.sol";
 import "./interfaces/IVYDai.sol";
 import "./interfaces/IVYPool.sol";
+import "@nomiclabs/buidler/console.sol";
 
 
 /// @dev The VYPool contract exchanges vyDai for fyDai at a price defined by a specific formula.
@@ -202,10 +203,8 @@ contract VYPool is IVYPool, Delegable(), ERC20Permit {
             toUint128(maturity - now), // This can't be called after maturity
             k,
             g1,
-            1 << 64,
-            // c0,
-            1 << 64
-            // int128((vyDai.exchangeRate() << 64) / 10 ** 27)
+            c0,
+            int128((vyDai.exchangeRate() << 64) / 10 ** 27)
         );
 
         require(
@@ -251,10 +250,8 @@ contract VYPool is IVYPool, Delegable(), ERC20Permit {
             toUint128(maturity - now), // This can't be called after maturity
             k,
             g2,
-            1 << 64,
-            // c0,
-            1 << 64
-            // int128((vyDai.exchangeRate() << 64) / 10 ** 27)
+            c0,
+            int128((vyDai.exchangeRate() << 64) / 10 ** 27)
         );
     }
 
@@ -293,10 +290,8 @@ contract VYPool is IVYPool, Delegable(), ERC20Permit {
             toUint128(maturity - now), // This can't be called after maturity
             k,
             g2,
-            1 << 64,
-            // c0,
-            1 << 64
-            // int128((vyDai.exchangeRate() << 64) / 10 ** 27)
+            c0,
+            int128((vyDai.exchangeRate() << 64) / 10 ** 27)
         );
     }
 
@@ -339,10 +334,8 @@ contract VYPool is IVYPool, Delegable(), ERC20Permit {
             toUint128(maturity - now), // This can't be called after maturity
             k,
             g1,
-            1 << 64,
-            // c0,
-            1 << 64
-            // int128((vyDai.exchangeRate() << 64) / 10 ** 27)
+            c0,
+            int128((vyDai.exchangeRate() << 64) / 10 ** 27)
         );
 
         require(

@@ -46,7 +46,7 @@ contract('Pool', async (accounts) => {
     fyDai1 = env.fyDais[0]
 
     // Setup vyDai
-    vyDai = await VYDai.new('10000000000000000000000') // exchangeRate = 1.0
+    vyDai = await VYDai.new('1000000000000000000000000000') // exchangeRate = 1.0
 
     // Setup Pool
     pool = await VYPool.new(vyDai.address, fyDai1.address, 'Name', 'Symbol', { from: owner })
