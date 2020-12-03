@@ -307,7 +307,7 @@ contract('Pool', async (accounts) => {
 
       it('sells dai', async () => {
         const oneToken = toWad(1)
-        await vyDai.mint(user1, daiTokens1)
+        await vyDai.mint(from, daiTokens1)
 
         // fyDaiOutForDaiIn formula: https://www.desmos.com/calculator/8eczy19er3
 
@@ -331,7 +331,7 @@ contract('Pool', async (accounts) => {
 
         await pool.addDelegate(operator, { from: from })
         await vyDai.approve(pool.address, oneToken, { from: from })
-        const event = (await pool.sellVYDai(from, to, oneToken, { from: operator })).logs[2]
+        const event = (await pool.sellVYDai(from, to, oneToken, { from: operator })).logs[3]
 
         const expectedFYDaiOut = new BN(oneToken.toString()).mul(new BN('117440')).div(new BN('100000'))
         const fyDaiOut = new BN(await fyDai1.balanceOf(to))
@@ -356,7 +356,7 @@ contract('Pool', async (accounts) => {
 
       it('buys fyDai', async () => {
         const oneToken = toWad(1)
-        await vyDai.mint(user1, daiTokens1)
+        await vyDai.mint(from, daiTokens1)
 
         // daiInForFYDaiOut formula: https://www.desmos.com/calculator/grjod0grzp
 
@@ -380,7 +380,7 @@ contract('Pool', async (accounts) => {
 
         await pool.addDelegate(operator, { from: from })
         await vyDai.approve(pool.address, daiTokens1, { from: from })
-        const event = (await pool.buyFYDai(from, to, oneToken, { from: operator })).logs[2]
+        const event = (await pool.buyFYDai(from, to, oneToken, { from: operator })).logs[3]
 
         const expectedDaiIn = new BN(oneToken.toString()).mul(new BN('85110')).div(new BN('100000'))
         const daiIn = new BN(daiTokens1.toString()).sub(new BN(await vyDai.balanceOf(from)))
