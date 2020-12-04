@@ -329,275 +329,308 @@ library VariableYieldMath {
 
   /**
    * Calculate the amount of fyDai a user would get for given amount of VYDai.
-   * https://www.desmos.com/calculator/ducvqay9yl
-   * @param vyDaiReserves VYDai reserves amount
+   * https://www.desmos.com/calculator/5nf2xuy6yb
+   * @param vyDaiReserves vyDai reserves amount
    * @param fyDaiReserves fyDai reserves amount
-   * @param vyDaiAmount VYDai amount to be traded
+   * @param vyDaiAmount vyDai amount to be traded
    * @param timeTillMaturity time till maturity in seconds
    * @param k time till maturity coefficient, multiplied by 2^64
    * @param g fee coefficient, multiplied by 2^64
-   * @param c price of VYDai in terms of VYDai, multiplied by 2^64
+   * @param c price of vyDai in terms of Dai, multiplied by 2^64
    * @return the amount of fyDai a user would get for given amount of VYDai
    */
   function fyDaiOutForVYDaiIn(
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount,
     uint128 timeTillMaturity, int128 k, int128 g, int128 c)
   internal pure returns(uint128) {
-    // t = k * timeTillMaturity
-    int128 t = k.mul(timeTillMaturity.fromUInt());
+    require(c > 0, "YieldMath: c must be positive");
 
-    // a = (1 - gt)
-    int128 a = int128(ONE).sub(g.mul(t));
-    require(a > 0, "YieldMath: Too far from maturity");
-
-    return _fyDaiOutForVYDaiIn(vyDaiReserves, fyDaiReserves, vyDaiAmount, a, c);
+    return _fyDaiOutForVYDaiIn(vyDaiReserves, fyDaiReserves, vyDaiAmount, _computeA(timeTillMaturity, k, g), c);
   }
 
   /// @dev Splitting fyDaiOutForVYDaiIn in two functions to avoid stack depth limits.
-  function _fyDaiOutForVYDaiIn(uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount, int128 a, int128 c)
+  function _fyDaiOutForVYDaiIn(uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount, uint128 a, int128 c)
   private pure returns(uint128) {
-    // cz = c * vyDaiReserves
-    uint256 cz = c.mulu(vyDaiReserves);
-    require(cz <= MAX, "YieldMath: Exchange rate overflow");
+    // za = c * (vyDaiReserves ** a)
+    uint256 za = c.mulu(vyDaiReserves.pow(a, ONE));
+    require(za <= MAX, "YieldMath: Exchange rate overflow before trade");
 
-    // czdz = c * (vyDaiReserves + vyDaiAmount)
-    uint256 czdz = c.mulu(uint256(vyDaiReserves) + uint256(vyDaiAmount));
-    require(czdz <= MAX, "YieldMath: Too much vyDai in");
+    // ya = fyDaiReserves ** a
+    uint256 ya = fyDaiReserves.pow(a, ONE);
 
-    uint256 sum =
-      c.mulu(uint128(cz).pow(uint128(a), ONE)) +
-      uint256(fyDaiReserves.pow(uint128(a), ONE)) -
-      c.mulu(uint128(czdz).pow(uint128(a), ONE));
+    // zx = vyDayReserves + vyDaiAmount
+    uint256 zx = uint256(vyDaiReserves) + uint256(vyDaiAmount);
+    require(zx <= MAX, "YieldMath: Too much vyDai in");
+
+    // zxa = c * (zx ** a)
+    uint256 zxa = c.mulu(uint128(zx).pow(a, ONE));
+    require(zxa <= MAX, "YieldMath: Exchange rate overflow after trade");
+
+    // sum = za + ya - zxa
+    uint256 sum = za + ya - zxa; // z < MAX, y < MAX, a < 1. It can only underflow, not overflow.
     require(sum <= MAX, "YieldMath: Insufficient fyDai reserves");
 
-    uint256 result = fyDaiReserves - uint128(sum).pow(ONE, uint128(a));
+    // result = fyDaiReserves - (sum ** (1/a))
+    uint256 result = uint256(fyDaiReserves) - uint256(uint128(sum).pow(ONE, a));
     require(result <= MAX, "YieldMath: Rounding induced error");
-    result = result > 1e12 ? result - 1e12 : 0; // Substract error guard, flooring the result at zero
+
+    result = result > 1e12 ? result - 1e12 : 0; // Subtract error guard, flooring the result at zero
 
     return uint128(result);
   }
 
   /**
-   * Calculate the amount of VYDai a user would get for certain amount of fyDai.
-   * https://www.desmos.com/calculator/gsw593jzbr
-   * @param vyDaiReserves VYDai reserves amount
+   * Calculate the amount of vyDai a user would get for certain amount of fyDai.
+   * https://www.desmos.com/calculator/6jlrre7ybt
+   * @param vyDaiReserves vyDai reserves amount
    * @param fyDaiReserves fyDai reserves amount
    * @param fyDaiAmount fyDai amount to be traded
    * @param timeTillMaturity time till maturity in seconds
    * @param k time till maturity coefficient, multiplied by 2^64
    * @param g fee coefficient, multiplied by 2^64
-   * @param c price of VYDai in terms of VYDai, multiplied by 2^64
+   * @param c price of vyDai in terms of Dai, multiplied by 2^64
    * @return the amount of VYDai a user would get for given amount of fyDai
    */
   function vyDaiOutForFYDaiIn(
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount,
     uint128 timeTillMaturity, int128 k, int128 g, int128 c)
   internal pure returns(uint128) {
-    // t = k * timeTillMaturity
-    int128 t = k.mul(timeTillMaturity.fromUInt());
+    require(c > 0, "YieldMath: c must be positive");
 
-    // a = (1 - gt)
-    int128 a = int128(ONE).sub(g.mul(t));
-    require(a > 0, "YieldMath: Too far from maturity");
-
-    return _vyDaiOutForFYDaiIn(vyDaiReserves, fyDaiReserves, fyDaiAmount, a, c);
+    return _vyDaiOutForFYDaiIn(vyDaiReserves, fyDaiReserves, fyDaiAmount, _computeA(timeTillMaturity, k, g), c);
   }
 
   /// @dev Splitting vyDaiOutForFYDaiIn in two functions to avoid stack depth limits.
-  function _vyDaiOutForFYDaiIn(uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount, int128 a, int128 c)
+  function _vyDaiOutForFYDaiIn(uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount, uint128 a, int128 c)
   private pure returns(uint128) {
     // invC = 1 / c
     int128 invC = c.inv();
 
-    // cz = c * vyDaiReserves
-    uint256 cz = c.mulu(vyDaiReserves);
-    require(cz <= MAX, "YieldMath: Exchange rate overflow");
+    // za = c * (vyDaiReserves ** a)
+    uint256 za = c.mulu(vyDaiReserves.pow(a, ONE));
+    require(za <= MAX, "YieldMath: Exchange rate overflow before trade");
 
-    // ydy = fyDaiReserves + fyDaiAmount;
-    uint256 ydy = uint256(fyDaiReserves) + uint256(fyDaiAmount);
-    require(ydy <= MAX, "YieldMath: Too much fyDai in");
+    // ya = fyDaiReserves ** a
+    uint256 ya = fyDaiReserves.pow(a, ONE);
 
-    uint256 sum =
-      uint256(uint128(cz).pow(uint128(a), ONE)) -
-      invC.mulu(
-        uint256(uint128(ydy).pow(uint128(a), ONE)) -
-        uint256(fyDaiReserves.pow(uint128(a), ONE)));
+    // yx = fyDayReserves + fyDaiAmount
+    uint256 yx = uint256(fyDaiReserves) + uint256(fyDaiAmount);
+    require(yx <= MAX, "YieldMath: Too much fyDai in");
+
+    // yxa = yx ** a
+    uint256 yxa = uint128(yx).pow(a, ONE);
+
+    // sum = za + ya - yxa
+    uint256 sum = za + ya - yxa; // z < MAX, y < MAX, a < 1. It can only underflow, not overflow.
     require(sum <= MAX, "YieldMath: Insufficient vyDai reserves");
 
-    uint256 result = vyDaiReserves - invC.mulu(uint128(sum).pow(ONE, uint128(a)));
+    // (1/c) * sum
+    uint256 invCsum = invC.mulu(sum);
+    require(invCsum <= MAX, "YieldMath: c too close to zero");
+
+    // result = vyDaiReserves - (((1/c) * sum) ** (1/a))
+    uint256 result = uint256(vyDaiReserves) - uint256(uint128(invCsum).pow(ONE, a));
     require(result <= MAX, "YieldMath: Rounding induced error");
-    result = result > 1e12 ? result - 1e12 : 0; // Substract error guard, flooring the result at zero
+
+    result = result > 1e12 ? result - 1e12 : 0; // Subtract error guard, flooring the result at zero
 
     return uint128(result);
   }
 
   /**
    * Calculate the amount of fyDai a user could sell for given amount of VYDai.
-   * https://www.desmos.com/calculator/pr5opcr0w3
-   * @param vyDaiReserves VYDai reserves amount
+   * https://www.desmos.com/calculator/0rgnmtckvy
+   * @param vyDaiReserves vyDai reserves amount
    * @param fyDaiReserves fyDai reserves amount
    * @param vyDaiAmount VYDai amount to be traded
    * @param timeTillMaturity time till maturity in seconds
    * @param k time till maturity coefficient, multiplied by 2^64
    * @param g fee coefficient, multiplied by 2^64
-   * @param c price of VYDai in terms of VYDai, multiplied by 2^64
+   * @param c price of vyDai in terms of Dai, multiplied by 2^64
    * @return the amount of fyDai a user could sell for given amount of VYDai
    */
   function fyDaiInForVYDaiOut(
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount,
     uint128 timeTillMaturity, int128 k, int128 g, int128 c)
   internal pure returns(uint128) {
-    // t = k * timeTillMaturity
-    int128 t = k.mul(timeTillMaturity.fromUInt());
+    require(c > 0, "YieldMath: c must be positive");
 
-    // a = (1 - gt)
-    int128 a = int128(ONE).sub(g.mul(t));
-    require(a > 0, "YieldMath: Too far from maturity");
-
-    return _fyDaiInForVYDaiOut(vyDaiReserves, fyDaiReserves, vyDaiAmount, a, c);
+    return _fyDaiInForVYDaiOut(vyDaiReserves, fyDaiReserves, vyDaiAmount, _computeA(timeTillMaturity, k, g), c);
   }
 
   /// @dev Splitting fyDaiInForVYDaiOut in two functions to avoid stack depth limits.
-  function _fyDaiInForVYDaiOut(uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount, int128 a, int128 c)
+  function _fyDaiInForVYDaiOut(uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount, uint128 a, int128 c)
   private pure returns(uint128) {
-    // cz = c * vyDaiReserves
-    uint256 cz = c.mulu(vyDaiReserves);
-    require(cz <= MAX, "YieldMath: Exchange rate overflow");
+    // za = c * (vyDaiReserves ** a)
+    uint256 za = c.mulu(vyDaiReserves.pow(a, ONE));
+    require(za <= MAX, "YieldMath: Exchange rate overflow before trade");
 
-    // czdz = c * (vyDaiReserves - vyDaiAmount)
-    uint256 czdz = c.mulu(uint256(vyDaiReserves) - uint256(vyDaiAmount));
-    require(czdz <= MAX, "YieldMath: Too much vyDai out");
+    // ya = fyDaiReserves ** a
+    uint256 ya = fyDaiReserves.pow(a, ONE);
 
-    uint256 sum =
-      c.mulu(uint128(cz).pow(uint128(a), ONE)) +
-      uint256(fyDaiReserves.pow(uint128(a), ONE)) -
-      c.mulu(uint128(czdz).pow(uint128(a), ONE));
+    // zx = vyDayReserves - vyDaiAmount
+    uint256 zx = uint256(vyDaiReserves) - uint256(vyDaiAmount);
+    require(zx <= MAX, "YieldMath: Too much vyDai out");
+
+    // zxa = c * (zx ** a)
+    uint256 zxa = c.mulu(uint128(zx).pow(a, ONE));
+    require(zxa <= MAX, "YieldMath: Exchange rate overflow after trade");
+
+    // sum = za + ya - zxa
+    uint256 sum = za + ya - zxa; // z < MAX, y < MAX, a < 1. It can only underflow, not overflow.
     require(sum <= MAX, "YieldMath: Resulting fyDai reserves too high");
 
-    uint256 result = uint128(sum).pow(ONE, uint128(a)) - fyDaiReserves;
+    // result = (sum ** (1/a)) - fyDaiReserves
+    uint256 result = uint256(uint128(sum).pow(ONE, a)) - uint256(fyDaiReserves);
     require(result <= MAX, "YieldMath: Rounding induced error");
-    result = result < type(uint128).max - 1e12 ? result + 1e12 : type(uint128).max; // Add error guard, ceiling the result at max
+
+    result = result < MAX - 1e12 ? result + 1e12 : MAX; // Add error guard, ceiling the result at max
 
     return uint128(result);
   }
 
   /**
-   * Calculate the amount of VYDai a user would have to pay for certain amount of fyDai.
-   * https://www.desmos.com/calculator/poicbg2qiw
+   * Calculate the amount of vyDai a user would have to pay for certain amount of fyDai.
+   * https://www.desmos.com/calculator/ws5oqj8x5i
    * @param vyDaiReserves VYDai reserves amount
    * @param fyDaiReserves fyDai reserves amount
    * @param fyDaiAmount fyDai amount to be traded
    * @param timeTillMaturity time till maturity in seconds
    * @param k time till maturity coefficient, multiplied by 2^64
    * @param g fee coefficient, multiplied by 2^64
-   * @param c price of VYDai in terms of VYDai, multiplied by 2^64
-   * @return the amount of VYDai a user would have to pay for given amount of
+   * @param c price of vyDai in terms of Dai, multiplied by 2^64
+   * @return the amount of vyDai a user would have to pay for given amount of
    *         fyDai
    */
   function vyDaiInForFYDaiOut(
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount,
     uint128 timeTillMaturity, int128 k, int128 g, int128 c)
   internal pure returns(uint128) {
-    // a = (1 - g * k * timeTillMaturity)
-    int128 a = int128(ONE).sub(g.mul(k.mul(timeTillMaturity.fromUInt())));
-    require(a > 0, "YieldMath: Too far from maturity");
+    require(c > 0, "YieldMath: c must be positive");
 
-    return _vyDaiInForFYDaiOut(vyDaiReserves, fyDaiReserves, fyDaiAmount, a, c);
+    return _vyDaiInForFYDaiOut(vyDaiReserves, fyDaiReserves, fyDaiAmount, _computeA(timeTillMaturity, k, g), c);
   }
 
   /// @dev Splitting vyDaiInForFYDaiOut in two functions to avoid stack depth limits.
-  function _vyDaiInForFYDaiOut(uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount, int128 a, int128 c)
+  function _vyDaiInForFYDaiOut(uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount, uint128 a, int128 c)
   private pure returns (uint128) {
-      // invC = 1 / c
-      int128 invC = c.inv();
+    // invC = 1 / c
+    int128 invC = c.inv();
 
-      // cz = c * vyDaiReserves
-      uint256 cz = c.mulu(vyDaiReserves);
-      require(cz <= MAX, "YieldMath: Exchange rate overflow");
+    // za = c * (vyDaiReserves ** a)
+    uint256 za = c.mulu(vyDaiReserves.pow(a, ONE));
+    require(za <= MAX, "YieldMath: Exchange rate overflow before trade");
 
-      // ydy = fyDaiReserves - fyDaiAmount;
-      uint256 ydy = uint256(fyDaiReserves) - uint256(fyDaiAmount);
-      require(ydy <= MAX, "YieldMath: Too much fyDai out");
+    // ya = fyDaiReserves ** a
+    uint256 ya = fyDaiReserves.pow(a, ONE);
 
-      uint256 sum =
-        uint256(uint128(cz).pow(uint128(a), ONE)) +
-        invC.mulu(
-          uint256(fyDaiReserves.pow(uint128(a), ONE)) -
-          uint256(uint128(ydy).pow(uint128(a), ONE)));
-      require(sum <= MAX, "YieldMath: Resulting vyDai reserves too high");
+    // yx = vyDayReserves - vyDaiAmount
+    uint256 yx = uint256(fyDaiReserves) - uint256(fyDaiAmount);
+    require(yx <= MAX, "YieldMath: Too much fyDai out");
 
-      uint256 result = invC.mulu(uint128(sum).pow(ONE, uint128(a))) - vyDaiReserves;
-      require(result <= MAX, "YieldMath: Rounding induced error");
-      result = result < type(uint128).max - 1e12 ? result + 1e12 : type(uint128).max; // Add error guard, ceiling the result at max
+    // yxa = yx ** a
+    uint256 yxa = uint128(yx).pow(a, ONE);
 
-      return uint128(result);
-    }
+    // sum = za + ya - yxa
+    uint256 sum = za + ya - yxa; // z < MAX, y < MAX, a < 1. It can only underflow, not overflow.
+    require(sum <= MAX, "YieldMath: Resulting vyDai reserves too high");
+
+    // (1/c) * sum
+    uint256 invCsum = invC.mulu(sum);
+    require(invCsum <= MAX, "YieldMath: c too close to zero");
+
+    // result = (((1/c) * sum) ** (1/a)) - vyDaiReserves
+    uint256 result = uint256(uint128(invCsum).pow(ONE, a)) - uint256(vyDaiReserves);
+    require(result <= MAX, "YieldMath: Rounding induced error");
+
+    result = result < MAX - 1e12 ? result + 1e12 : MAX; // Add error guard, ceiling the result at max
+
+    return uint128(result);
+  }
+
+  function _computeA(uint128 timeTillMaturity, int128 k, int128 g) private pure returns (uint128) {
+    // t = k * timeTillMaturity
+    int128 t = k.mul(timeTillMaturity.fromUInt());
+    require(t >= 0, "YieldMath: t must be positive"); // Meaning neither T or k can be negative
+
+    // a = (1 - gt)
+    int128 a = int128(ONE).sub(g.mul(t));
+    require(a > 0, "YieldMath: Too far from maturity");
+    require(a <= int128(ONE), "YieldMath: g must be positive");
+
+    return uint128(a);
+  }
 
   /**
    * Calculate the amount of fyDai a user would get for given amount of VYDai.
-   * https://www.desmos.com/calculator/uwni55gct3
-   * @param vyDaiReserves VYDai reserves amount
+   * A normalization parameter is taken to normalize the exchange rate at a certain value.
+   * This is used for liquidity pools to be initialized with balanced reserves.
+   * @param vyDaiReserves vyDai reserves amount
    * @param fyDaiReserves fyDai reserves amount
    * @param vyDaiAmount VYDai amount to be traded
    * @param timeTillMaturity time till maturity in seconds
    * @param k time till maturity coefficient, multiplied by 2^64
-   * @param c price of VYDai in terms of VYDai, multiplied by 2^64
    * @param g fee coefficient, multiplied by 2^64
-   * @param c0 price of VYDai in terms of VYDai as it was at protocol
+   * @param c0 price of vyDai in terms of vyDai as it was at protocol
    *        initialization time, multiplied by 2^64
+   * @param c price of vyDai in terms of Dai, multiplied by 2^64
    * @return the amount of fyDai a user would get for given amount of VYDai
    */
   function fyDaiOutForVYDaiInNormalized(
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount,
-    uint128 timeTillMaturity, int128 k, int128 c, int128 g, int128 c0)
+    uint128 timeTillMaturity, int128 k, int128 g, int128 c0, int128 c)
   internal pure returns(uint128) {
-    uint256 normalizedDaiReserves = c0.mulu(vyDaiReserves);
-    require(normalizedDaiReserves <= MAX);
+    uint256 normalizedVYDaiReserves = c0.mulu(vyDaiReserves);
+    require(normalizedVYDaiReserves <= MAX, "YieldMath: Overflow on reserve normalization");
 
-    uint256 normalizedDaiAmount = c0.mulu(vyDaiAmount);
-    require(normalizedDaiAmount <= MAX);
+    uint256 normalizedVYDaiAmount = c0.mulu(vyDaiAmount);
+    require(normalizedVYDaiAmount <= MAX, "YieldMath: Overflow on trade normalization");
 
     return fyDaiOutForVYDaiIn(
-      uint128(normalizedDaiReserves),
+      uint128(normalizedVYDaiReserves),
       fyDaiReserves,
-      uint128(normalizedDaiAmount),
+      uint128(normalizedVYDaiAmount),
       timeTillMaturity,
       k,
-      c.div(c0),
-      g);
+      g,
+      c.div(c0)
+    );
   }
 
   /**
-   * Calculate the amount of VYDai a user would get for certain amount of fyDai.
-   *
-   * @param vyDaiReserves VYDai reserves amount
+   * Calculate the amount of vyDai a user would get for certain amount of fyDai.
+   * A normalization parameter is taken to normalize the exchange rate at a certain value.
+   * This is used for liquidity pools to be initialized with balanced reserves.
+   * @param vyDaiReserves vyDai reserves amount
    * @param fyDaiReserves fyDai reserves amount
    * @param fyDaiAmount fyDai amount to be traded
    * @param timeTillMaturity time till maturity in seconds
    * @param k time till maturity coefficient, multiplied by 2^64
-   * @param c price of VYDai in terms of VYDai, multiplied by 2^64
    * @param g fee coefficient, multiplied by 2^64
-   * @param c0 price of VYDai in terms of VYDai as it was at protocol
+   * @param c0 price of vyDai in terms of Dai as it was at protocol
    *        initialization time, multiplied by 2^64
-   * @return the amount of VYDai a user would get for given amount of fyDai
+   * @param c price of vyDai in terms of Dai, multiplied by 2^64
+   * @return the amount of vyDai a user would get for given amount of fyDai
    */
   function vyDaiOutForFYDaiInNormalized(
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount,
-    uint128 timeTillMaturity, int128 k, int128 c, int128 g, int128 c0)
+    uint128 timeTillMaturity, int128 k, int128 g, int128 c0, int128 c)
   internal pure returns(uint128) {
-    uint256 normalizedDaiReserves = c0.mulu(vyDaiReserves);
-    require(normalizedDaiReserves <= MAX);
+    uint256 normalizedVYDaiReserves = c0.mulu(vyDaiReserves);
+    require(normalizedVYDaiReserves <= MAX, "YieldMath: Overflow on reserve normalization");
 
     uint256 result = c0.inv().mulu(
       vyDaiOutForFYDaiIn(
-        uint128(normalizedDaiReserves),
+        uint128(normalizedVYDaiReserves),
         fyDaiReserves,
         fyDaiAmount,
         timeTillMaturity,
         k,
-        c.div(c0),
-        g));
-    require(result <= MAX);
+        g,
+        c.div(c0)
+      )
+    );
+    require(result <= MAX, "YieldMath: Overflow on result normalization");
 
     return uint128(result);
   }
@@ -605,70 +638,73 @@ library VariableYieldMath {
   /**
    * Calculate the amount of fyDai a user could sell for given amount of VYDai.
    * 
-   * @param vyDaiReserves VYDai reserves amount
+   * @param vyDaiReserves vyDai reserves amount
    * @param fyDaiReserves fyDai reserves amount
-   * @param vyDaiAmount VYDai amount to be traded
+   * @param vyDaiAmount vyDai amount to be traded
    * @param timeTillMaturity time till maturity in seconds
    * @param k time till maturity coefficient, multiplied by 2^64
-   * @param c price of VYDai in terms of VYDai, multiplied by 2^64
    * @param g fee coefficient, multiplied by 2^64
-   * @param c0 price of VYDai in terms of VYDai as it was at protocol
+   * @param c0 price of vyDai in terms of Dai as it was at protocol
    *        initialization time, multiplied by 2^64
+   * @param c price of vyDai in terms of Dai, multiplied by 2^64
    * @return the amount of fyDai a user could sell for given amount of VYDai
    */
   function fyDaiInForVYDaiOutNormalized(
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount,
-    uint128 timeTillMaturity, int128 k, int128 c, int128 g, int128 c0)
+    uint128 timeTillMaturity, int128 k, int128 g, int128 c0, int128 c)
   internal pure returns(uint128) {
-    uint256 normalizedDaiReserves = c0.mulu(vyDaiReserves);
-    require(normalizedDaiReserves <= MAX);
+    uint256 normalizedVYDaiReserves = c0.mulu(vyDaiReserves);
+    require(normalizedVYDaiReserves <= MAX, "YieldMath: Overflow on reserve normalization");
 
-    uint256 normalizedDaiAmount = c0.mulu(vyDaiAmount);
-    require(normalizedDaiAmount <= MAX);
+    uint256 normalizedVYDaiAmount = c0.mulu(vyDaiAmount);
+    require(normalizedVYDaiAmount <= MAX, "YieldMath: Overflow on trade normalization");
 
     return fyDaiInForVYDaiOut(
-      uint128(normalizedDaiReserves),
+      uint128(normalizedVYDaiReserves),
       fyDaiReserves,
-      uint128(normalizedDaiAmount),
+      uint128(normalizedVYDaiAmount),
       timeTillMaturity,
       k,
-      c.div(c0),
-      g);
+      g,
+      c.div(c0)
+    );
   }
 
   /**
    * Calculate the amount of VYDai a user would have to pay for certain amount of
    * fyDai.
    *
-   * @param vyDaiReserves VYDai reserves amount
+   * @param vyDaiReserves vyDai reserves amount
    * @param fyDaiReserves fyDai reserves amount
    * @param fyDaiAmount fyDai amount to be traded
    * @param timeTillMaturity time till maturity in seconds
    * @param k time till maturity coefficient, multiplied by 2^64
-   * @param c price of VYDai in terms of VYDai, multiplied by 2^64
    * @param g fee coefficient, multiplied by 2^64
-   * @param c0 price of VYDai in terms of VYDai as it was at protocol
+   * @param c0 price of vyDai in terms of VYDai as it was at protocol
    *        initialization time, multiplied by 2^64
-   * @return the amount of VYDai a user would have to pay for given amount of
+   * @param c price of vyDai in terms of Dai, multiplied by 2^64
+   * @return the amount of vyDai a user would have to pay for given amount of
    *         fyDai
    */
   function vyDaiInForFYDaiOutNormalized(
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount,
-    uint128 timeTillMaturity, int128 k, int128 c, int128 g, int128 c0)
+    uint128 timeTillMaturity, int128 k, int128 g, int128 c0, int128 c)
   internal pure returns(uint128) {
-    uint256 normalizedDaiReserves = c0.mulu(vyDaiReserves);
-    require(normalizedDaiReserves <= MAX);
+    uint256 normalizedVYDaiReserves = c0.mulu(vyDaiReserves);
+    require(normalizedVYDaiReserves <= MAX, "YieldMath: Overflow on reserve normalization");
 
     uint256 result = c0.inv().mulu(
       vyDaiInForFYDaiOut(
-        uint128(normalizedDaiReserves),
+        uint128(normalizedVYDaiReserves),
         fyDaiReserves,
         fyDaiAmount,
         timeTillMaturity,
         k,
-        c.div(c0),
-        g));
-    require(result <= MAX);
+        g,
+        c.div(c0)
+      )
+    );
+    require(result <= MAX, "YieldMath: Overflow on result normalization");
 
     return uint128(result);
   }
@@ -676,26 +712,26 @@ library VariableYieldMath {
   /**
    * Estimate in VYDai the value of reserves at protocol initialization time.
    *
-   * @param vyDaiReserves VYDai reserves amount
+   * @param vyDaiReserves vyDai reserves amount
    * @param fyDaiReserves fyDai reserves amount
    * @param timeTillMaturity time till maturity in seconds
    * @param k time till maturity coefficient, multiplied by 2^64
-   * @param c0 price of VYDai in terms of VYDai, multiplied by 2^64
+   * @param c0 price of vyDai in terms of Dai, multiplied by 2^64
    * @return estimated value of reserves
    */
   function initialReservesValue(
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 timeTillMaturity,
     int128 k, int128 c0)
   internal pure returns(uint128) {
-    uint256 normalizedDaiReserves = c0.mulu(vyDaiReserves);
-    require(normalizedDaiReserves <= MAX);
+    uint256 normalizedVYDaiReserves = c0.mulu(vyDaiReserves);
+    require(normalizedVYDaiReserves <= MAX);
 
     // a = (1 - k * timeTillMaturity)
     int128 a = int128(ONE).sub(k.mul(timeTillMaturity.fromUInt()));
     require(a > 0);
 
     uint256 sum =
-      uint256(uint128(normalizedDaiReserves).pow(uint128(a), ONE)) +
+      uint256(uint128(normalizedVYDaiReserves).pow(uint128(a), ONE)) +
       uint256(fyDaiReserves.pow(uint128(a), ONE)) >> 1;
     require(sum <= MAX);
 
