@@ -17,6 +17,10 @@ contract CDaiMock is ERC20Permit("Compound Dai", "cDai"), ICToken {
     dai = new DaiMock();
   }
 
+  function exchangeRateStored() external override view returns (uint) {
+    return 1 ether;
+  }
+
   function underlying() external override view returns (address) {
     return address(dai);
   }

@@ -9,8 +9,9 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "../interfaces/IComptroller.sol";
 import "../interfaces/ICToken.sol";
 import "../interfaces/IUniswapV2Router.sol";
+import "../interfaces/IVYDai.sol";
 
-contract vycDai is ERC20 {
+contract VYcDai is ERC20, IVYDai {
     using SafeMath for uint256;
 
     address public immutable comp;
@@ -76,6 +77,10 @@ contract vycDai is ERC20 {
 
     function balance() private view returns (uint256) {
         return cdai.balanceOf(address(this));
+    }
+
+    function exchangeRate() external override view returns (uint) {
+        return balance().mul(1e27).mul(cdai.exchangeRateStored()).div(totalSupply()).div(1e18);
     }
 
     function harvest() public {

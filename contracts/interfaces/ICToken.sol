@@ -9,6 +9,6 @@ interface ICToken is IERC20 {
     function mint(uint mintAmount) external returns (uint _error);
     // function redeem(uint redeemTokens) external returns (uint _error);
     // function redeemUnderlying(uint redeemAmount) external returns (uint _error);
-    // function exchangeRateStored() external view returns (uint);
+    function exchangeRateStored() external view returns (uint);
     // function exchangeRateCurrent() external returns (uint);
 }
