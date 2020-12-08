@@ -55,16 +55,42 @@ contract VYcDai is ERC20, IVYDai {
         _mint(msg.sender, shares);
     }
 
+    function depositDai(uint256 _amount) external {
+        uint256 _pool = balance();
+
+        IERC20(dai).transferFrom(msg.sender, address(this), _amount);
+
+        IERC20(dai).approve(address(cdai), _amount);
+        cdai.mint(_amount);
+
+        uint256 newCDai = balance().sub(_pool);
+
+        uint256 shares = 0;
+        if (totalSupply() == 0) {
+            shares = newCDai;
+        } else {
+            shares = (newCDai.mul(totalSupply())).div(_pool);
+        }
+        _mint(msg.sender, shares);
+    }
+
     function withdrawAll() external {
         withdraw(balanceOf(msg.sender));
     }
 
-    // No rebalance implementation for lower fees and faster swaps
     function withdraw(uint256 _shares) public {
         uint256 r = (balance().mul(_shares)).div(totalSupply());
         _burn(msg.sender, _shares);
 
         cdai.transfer(msg.sender, r);
+    }
+
+    function withdrawDai(uint256 _shares) external {
+        uint256 r = (balance().mul(_shares)).div(totalSupply());
+        _burn(msg.sender, _shares);
+
+        cdai.redeem(r);
+        IERC20(dai).transfer(msg.sender, IERC20(dai).balanceOf(address(this)));
     }
 
     function getPricePerFullShare() public view returns (uint256) {
