@@ -32,6 +32,11 @@ contract CDaiMock is ERC20Permit("Compound Dai", "cDai"), ICToken {
     _mint(msg.sender, amount);
   }
 
+  function redeem(uint amount) external override returns (uint /*_error*/) {
+    _burn(msg.sender, amount);
+    dai.transfer(msg.sender, amount);
+  }
+
   function mintDai(address to, uint256 amount) public {
     dai.mint(to, amount);
   }

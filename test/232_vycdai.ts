@@ -1,3 +1,4 @@
+const IERC20 = artifacts.require('IERC20')
 const VYcDai = artifacts.require('VYcDai')
 const ComptrollerMock = artifacts.require('ComptrollerMock')
 const CDaiMock = artifacts.require('CDaiMock')
@@ -18,6 +19,7 @@ contract('VYcDai', async ([owner, user1, user2]) => {
     comptroller = await ComptrollerMock.new()
     cdai = await CDaiMock.new()
     uniswapRouter = await UniswapV2RouterMock.new()
+    dai = await IERC20.at(await cdai.underlying())
 
     await cdai.mintDai(uniswapRouter.address, toWad(10000));
     
@@ -87,5 +89,23 @@ contract('VYcDai', async ([owner, user1, user2]) => {
 
     assert.equal(await vycDai.balanceOfUnderlying(user1), toWad(11).toString())
     assert.equal(await vycDai.balanceOfUnderlying(user2), toWad(22).toString())
+  })
+
+  it('should allow deposits and withdrawls in Dai', async () => {
+    await cdai.mintDai(user1, toWad(10), { from: user1 })
+
+    await dai.approve(vycDai.address, toWad(10), { from: user1 })
+    await vycDai.depositDai(toWad(10), { from: user1 })
+
+    assert.equal(await vycDai.balanceOf(user1), toWad(10).toString())
+    assert.equal(await vycDai.balanceOfUnderlying(user1), toWad(10).toString())
+
+    await vycDai.harvest()
+
+    assert.equal(await vycDai.balanceOfUnderlying(user1), toWad(11).toString())
+
+    await vycDai.withdrawDai(toWad(10), { from: user1 })
+
+    assert.equal(await dai.balanceOf(user1), toWad(11).toString())
   })
 })
