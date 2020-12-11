@@ -12,13 +12,15 @@ contract DaiMock is ERC20Permit("Dai", "DAI") {
 
 contract CDaiMock is ERC20Permit("Compound Dai", "cDai"), ICToken {
   DaiMock private dai;
+  uint256 public override exchangeRateStored;
 
   constructor() public {
     dai = new DaiMock();
+    exchangeRateStored = 1e18;
   }
 
-  function exchangeRateStored() external override view returns (uint) {
-    return 1 ether;
+  function exchangeRateCurrent() external override returns (uint) {
+    return exchangeRateStored;
   }
 
   function underlying() external override view returns (address) {
@@ -37,5 +39,9 @@ contract CDaiMock is ERC20Permit("Compound Dai", "cDai"), ICToken {
   function mintCDai(address to, uint256 amount) public {
     dai.mint(address(this), amount);
     _mint(to, amount);
+  }
+
+  function setExchangeRate(uint256 exchangeRate) public {
+      exchangeRateStored = exchangeRate;
   }
 }
