@@ -1,4 +1,5 @@
-const VariableYieldMath = artifacts.require('VariableYieldMathWrapper')
+const VariableYieldMathWrapper = artifacts.require('VariableYieldMathWrapper')
+const VariableYieldMath = artifacts.require('VariableYieldMath')
 
 // @ts-ignore
 import helper from 'ganache-time-traveler'
@@ -88,12 +89,17 @@ contract('VariableYieldMath - Surface', async (accounts) => {
   ]
   const exchangeRates = ['1.00', '1.01', '1.05', '1.25', '2.00']
 
+  before(async () => {
+    const yieldMathLibrary = await VariableYieldMath.new()
+    await VariableYieldMathWrapper.link(yieldMathLibrary)
+  })
+
   beforeEach(async () => {
     snapshot = await helper.takeSnapshot()
     snapshotId = snapshot['result']
 
     // Setup YieldMathWrapper
-    yieldMath = await VariableYieldMath.new()
+    yieldMath = await VariableYieldMathWrapper.new()
   })
 
   afterEach(async () => {
