@@ -1,16 +1,17 @@
 const VYPool = artifacts.require('VYPool')
 const VYDai = artifacts.require('VYDaiMock')
+const FYDai = artifacts.require('FYDaiMock')
 
 const { bignumber, floor, multiply } = require('mathjs')
 import { keccak256, toUtf8Bytes } from 'ethers/lib/utils'
 // @ts-ignore
 import helper from 'ganache-time-traveler'
 import { toWad, toRay, mulRay } from './shared/utils'
-import { YieldEnvironmentLite, Contract } from './shared/fixtures'
 import { mint, burn, sellVYDaiNormalized, sellFYDaiNormalized, buyVYDaiNormalized, buyFYDaiNormalized } from './shared/yieldspace'
 // @ts-ignore
 import { BN, expectRevert } from '@openzeppelin/test-helpers'
 import { assert, expect } from 'chai'
+import { Contract } from './shared/fixtures'
 
 const ONE64 = new BN('18446744073709551616') // In 64.64 format
 
@@ -43,9 +44,6 @@ contract('Pool', async (accounts) => {
   let snapshot: any
   let snapshotId: string
 
-  let env: YieldEnvironmentLite
-
-  let dai: Contract
   let pool: Contract
   let fyDai1: Contract
   let vyDai: Contract
@@ -58,19 +56,14 @@ contract('Pool', async (accounts) => {
 
     // Setup fyDai
     const block = await web3.eth.getBlockNumber()
-    maturity1 = (await web3.eth.getBlock(block)).timestamp + 31556952 // One year
-    env = await YieldEnvironmentLite.setup([maturity1])
-    dai = env.maker.dai
-    fyDai1 = env.fyDais[0]
+    maturity1 = (await web3.eth.getBlock(block)).timestamp + 31556952 // One year    
+    fyDai1 = await FYDai.new(maturity1)
 
     // Setup vyDai
     vyDai = await VYDai.new('2000000000000000000000000000') // exchangeRate = 2.0
 
     // Setup Pool
     pool = await VYPool.new(vyDai.address, fyDai1.address, 'Name', 'Symbol', { from: owner })
-
-    // Allow owner to mint fyDai the sneaky way, without recording a debt in controller
-    await fyDai1.orchestrate(owner, keccak256(toUtf8Bytes('mint(address,uint256)')), { from: owner })
 
     await vyDai.setExchangeRate('3000000000000000000000000000') // exchangeRate = 3.0
   })

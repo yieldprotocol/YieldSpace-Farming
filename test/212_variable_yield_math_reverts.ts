@@ -2,9 +2,9 @@ const VariableYieldMath = artifacts.require('VariableYieldMathWrapper')
 
 // @ts-ignore
 import helper from 'ganache-time-traveler'
-import { Contract } from './shared/fixtures'
 // @ts-ignore
 import { BN, expectRevert } from '@openzeppelin/test-helpers'
+import { Contract } from './shared/fixtures'
 
 function toBigNumber(x: any) {
   if (typeof x == 'object') x = x.toString()

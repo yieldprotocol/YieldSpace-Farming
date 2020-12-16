@@ -2,10 +2,10 @@ const VariableYieldMath = artifacts.require('VariableYieldMathWrapper')
 
 // @ts-ignore
 import helper from 'ganache-time-traveler'
-import { Contract } from './shared/fixtures'
 // @ts-ignore
 import { BN } from '@openzeppelin/test-helpers'
 import { expect } from 'chai'
+import { Contract } from './shared/fixtures'
 
 /**
  * Throws given message unless given condition is true.
