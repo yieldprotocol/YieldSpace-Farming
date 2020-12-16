@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.6.10;
+pragma solidity ^0.7.0;
 
 import "../helpers/ERC20Permit.sol";
 import "../interfaces/IVYDai.sol";
@@ -7,7 +7,7 @@ import "../interfaces/IVYDai.sol";
 contract VYDaiMock is IVYDai, ERC20Permit {
     uint256 public override exchangeRate;
 
-    constructor (uint256 exchangeRate_) public ERC20Permit("Test", "TST") {
+    constructor (uint256 exchangeRate_) ERC20Permit("Test", "TST") {
         exchangeRate = exchangeRate_;
     }
 
@@ -19,7 +19,7 @@ contract VYDaiMock is IVYDai, ERC20Permit {
         _burn(from, amount);
     }
 
-    function setExchangeRate(uint256 exchangeRate_) public returns (uint256) {
+    function setExchangeRate(uint256 exchangeRate_) public {
         exchangeRate = exchangeRate_;
     }
 }
