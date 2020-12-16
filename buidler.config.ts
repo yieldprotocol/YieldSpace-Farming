@@ -10,7 +10,7 @@ export default {
         version: "0.6.10",
         optimizer: {
             enabled: true,
-            runs: 200
+            runs: 20000
         },
     },
     gasReporter: {
