@@ -1,16 +1,24 @@
 const VYPool = artifacts.require('VYPool')
 const VYDai = artifacts.require('VYDaiMock')
+const FYDai = artifacts.require('FYDaiMock')
 
 const { bignumber, floor, multiply } = require('mathjs')
 import { keccak256, toUtf8Bytes } from 'ethers/lib/utils'
 // @ts-ignore
 import helper from 'ganache-time-traveler'
 import { toWad, toRay, mulRay } from './shared/utils'
-import { YieldEnvironmentLite, Contract } from './shared/fixtures'
-import { mint, burn, sellVYDaiNormalized, sellFYDaiNormalized, buyVYDaiNormalized, buyFYDaiNormalized } from './shared/yieldspace'
+import {
+  mint,
+  burn,
+  sellVYDaiNormalized,
+  sellFYDaiNormalized,
+  buyVYDaiNormalized,
+  buyFYDaiNormalized,
+} from './shared/yieldspace'
 // @ts-ignore
 import { BN, expectRevert } from '@openzeppelin/test-helpers'
 import { assert, expect } from 'chai'
+import { Contract } from './shared/fixtures'
 
 const ONE64 = new BN('18446744073709551616') // In 64.64 format
 
@@ -43,9 +51,6 @@ contract('Pool', async (accounts) => {
   let snapshot: any
   let snapshotId: string
 
-  let env: YieldEnvironmentLite
-
-  let dai: Contract
   let pool: Contract
   let fyDai1: Contract
   let vyDai: Contract
@@ -59,18 +64,13 @@ contract('Pool', async (accounts) => {
     // Setup fyDai
     const block = await web3.eth.getBlockNumber()
     maturity1 = (await web3.eth.getBlock(block)).timestamp + 31556952 // One year
-    env = await YieldEnvironmentLite.setup([maturity1])
-    dai = env.maker.dai
-    fyDai1 = env.fyDais[0]
+    fyDai1 = await FYDai.new(maturity1)
 
     // Setup vyDai
     vyDai = await VYDai.new('2000000000000000000000000000') // exchangeRate = 2.0
 
     // Setup Pool
     pool = await VYPool.new(vyDai.address, fyDai1.address, 'Name', 'Symbol', { from: owner })
-
-    // Allow owner to mint fyDai the sneaky way, without recording a debt in controller
-    await fyDai1.orchestrate(owner, keccak256(toUtf8Bytes('mint(address,uint256)')), { from: owner })
 
     await vyDai.setExchangeRate('3000000000000000000000000000') // exchangeRate = 3.0
   })
@@ -122,7 +122,7 @@ contract('Pool', async (accounts) => {
       const fyDaiReserves = await pool.getFYDaiReserves()
       const fyDaiIn = new BN(toWad(1).toString())
       const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
-      const timeTillMaturity = (new BN(maturity1)).sub(now)
+      const timeTillMaturity = new BN(maturity1).sub(now)
 
       assert.equal(
         await vyDai.balanceOf(to),
@@ -145,7 +145,7 @@ contract('Pool', async (accounts) => {
       await pool.addDelegate(operator, { from: from })
       await fyDai1.mint(from, fyDaiIn, { from: owner })
       await fyDai1.approve(pool.address, fyDaiIn, { from: from })
-      const tx = (await pool.sellFYDai(from, to, fyDaiIn, { from: operator }))
+      const tx = await pool.sellFYDai(from, to, fyDaiIn, { from: operator })
       const event = tx.logs[tx.logs.length - 1]
 
       assert.equal(event.event, 'Trade')
@@ -155,7 +155,7 @@ contract('Pool', async (accounts) => {
       assert.equal(event.args.fyDaiTokens, fyDaiIn.mul(new BN('-1')).toString())
 
       assert.equal(await fyDai1.balanceOf(from), 0, "'From' wallet should have no fyDai tokens")
-      
+
       const vyDaiOut = await vyDai.balanceOf(to)
 
       almostEqual(vyDaiOut, floor(expectedVYDaiOut).toFixed(), fyDaiIn.div(new BN('1000000')))
@@ -167,7 +167,7 @@ contract('Pool', async (accounts) => {
       const fyDaiReserves = await pool.getFYDaiReserves()
       const vyDaiOut = new BN(toWad(1).toString())
       const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
-      const timeTillMaturity = (new BN(maturity1)).sub(now)
+      const timeTillMaturity = new BN(maturity1).sub(now)
 
       await fyDai1.mint(from, fyDaiTokens, { from: owner })
 
@@ -191,7 +191,7 @@ contract('Pool', async (accounts) => {
 
       await pool.addDelegate(operator, { from: from })
       await fyDai1.approve(pool.address, fyDaiTokens, { from: from })
-      const tx = (await pool.buyVYDai(from, to, vyDaiOut, { from: operator }))
+      const tx = await pool.buyVYDai(from, to, vyDaiOut, { from: operator })
       const event = tx.logs[tx.logs.length - 1]
 
       const fyDaiIn = fyDaiTokens.sub(await fyDai1.balanceOf(from))
@@ -293,7 +293,7 @@ contract('Pool', async (accounts) => {
         const fyDaiReserves = await pool.getFYDaiReserves()
         const vyDaiIn = new BN(toWad(1).toString())
         const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
-        const timeTillMaturity = (new BN(maturity1)).sub(now)
+        const timeTillMaturity = new BN(maturity1).sub(now)
 
         assert.equal(
           await fyDai1.balanceOf(to),
@@ -316,7 +316,7 @@ contract('Pool', async (accounts) => {
         await pool.addDelegate(operator, { from: from })
         await vyDai.mint(from, vyDaiIn)
         await vyDai.approve(pool.address, vyDaiIn, { from: from })
-        const tx = (await pool.sellVYDai(from, to, vyDaiIn, { from: operator }))
+        const tx = await pool.sellVYDai(from, to, vyDaiIn, { from: operator })
         const event = tx.logs[tx.logs.length - 1]
 
         const fyDaiOut = await fyDai1.balanceOf(to)
@@ -327,11 +327,7 @@ contract('Pool', async (accounts) => {
         assert.equal(event.args.vyDaiTokens, vyDaiIn.mul(new BN('-1')).toString())
         assert.equal(event.args.fyDaiTokens, fyDaiOut.toString())
 
-        assert.equal(
-          await vyDai.balanceOf(from),
-          0,
-          "'From' wallet should have no vyDai tokens"
-        )
+        assert.equal(await vyDai.balanceOf(from), 0, "'From' wallet should have no vyDai tokens")
 
         almostEqual(fyDaiOut, floor(expectedFYDaiOut).toFixed(), vyDaiIn.div(new BN('1000000')))
         almostEqual(fyDaiOutPreview, floor(expectedFYDaiOut).toFixed(), vyDaiIn.div(new BN('1000000')))
@@ -342,7 +338,7 @@ contract('Pool', async (accounts) => {
         const fyDaiReserves = await pool.getFYDaiReserves()
         const fyDaiOut = new BN(toWad(1).toString())
         const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
-        const timeTillMaturity = (new BN(maturity1)).sub(now)
+        const timeTillMaturity = new BN(maturity1).sub(now)
 
         assert.equal(
           await fyDai1.balanceOf(to),

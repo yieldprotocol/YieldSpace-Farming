@@ -2,13 +2,13 @@ const VariableYieldMath = artifacts.require('VariableYieldMathWrapper')
 
 // @ts-ignore
 import helper from 'ganache-time-traveler'
-import { Contract } from './shared/fixtures'
 // @ts-ignore
 import { BN } from '@openzeppelin/test-helpers'
 import { expect } from 'chai'
 // const { bignumber, add, subtract, multiply, divide, pow, floor } = require('mathjs')
 import { sellVYDai, sellFYDai, buyVYDai, buyFYDai } from './shared/yieldspace'
 const { floor } = require('mathjs')
+import { Contract } from './shared/fixtures'
 
 const ONE = new BN('1')
 const TWO = new BN('2')
