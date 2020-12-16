@@ -3,9 +3,9 @@ const VariableYieldMath = artifacts.require('VariableYieldMath')
 
 // @ts-ignore
 import helper from 'ganache-time-traveler'
-import { Contract } from './shared/fixtures'
 // @ts-ignore
 import { BN, expectRevert } from '@openzeppelin/test-helpers'
+import { Contract } from './shared/fixtures'
 
 /**
  * Throws given message unless given condition is true.

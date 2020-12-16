@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./VariableYieldMath.sol";
 import "./helpers/Delegable.sol";
 import "./helpers/ERC20Permit.sol";
-import "./interfaces/IPot.sol";
 import "./interfaces/IFYDai.sol";
 import "./interfaces/IVYDai.sol";
 import "./interfaces/IVYPool.sol";
