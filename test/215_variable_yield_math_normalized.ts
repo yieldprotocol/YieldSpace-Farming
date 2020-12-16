@@ -87,18 +87,8 @@ contract('VariableYieldMath - Surface', async (accounts) => {
     // '40000000',
     '80000000',
   ]
-  const initialRates = [
-    '0.000101',
-    '0.0101',
-    '0.101',
-    '1.01',
-  ]
-  const normalizedRates = [
-    '0.000101',
-    '0.0101',
-    '0.101',
-    '1.01',
-  ]
+  const initialRates = ['0.000101', '0.0101', '0.101', '1.01']
+  const normalizedRates = ['0.000101', '0.0101', '0.101', '1.01']
 
   beforeEach(async () => {
     snapshot = await helper.takeSnapshot()
