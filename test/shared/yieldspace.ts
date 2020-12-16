@@ -1,5 +1,29 @@
 const { bignumber, add, subtract, multiply, divide, pow } = require('mathjs')
 
+// https://www.desmos.com/calculator/mllhtohxfx
+export function mint(vyDaiReserves: any, fyDaiReserves: any, supply: any, vyDai: any): [any, any] {
+  const Z = bignumber(vyDaiReserves)
+  const Y = bignumber(fyDaiReserves)
+  const S = bignumber(supply)
+  const z = bignumber(vyDai)
+  const m = divide(multiply(S, z), Z)
+  const y = divide(multiply(Y, m), S)
+
+  return [m, y]
+}
+
+// https://www.desmos.com/calculator/ubsalzunpo
+export function burn(vyDaiReserves: any, fyDaiReserves: any, supply: any, lpTokens: any): [any, any] {
+  const Z = bignumber(vyDaiReserves)
+  const Y = bignumber(fyDaiReserves)
+  const S = bignumber(supply)
+  const x = bignumber(lpTokens)
+  const z = divide(multiply(x, Z), S)
+  const y = divide(multiply(x, Y), S)
+
+  return [z, y]
+}
+
 // https://www.desmos.com/calculator/5nf2xuy6yb
 export function sellVYDai(vyDaiReserves: any, fyDaiReserves: any, vyDai: any, timeTillMaturity: any, rate: any): any {
   const fee = bignumber(1000000000000)

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.6.0;
+pragma solidity ^0.7.0;
 
 import "./Math64x64.sol";
 
@@ -325,7 +325,7 @@ library VariableYieldMath {
   using Exp64x64 for uint128;
 
   uint128 public constant ONE = 0x10000000000000000; // In 64.64
-  uint256 internal constant MAX = type(uint128).max;   // Used for overflow checks
+  uint256 public constant MAX = type(uint128).max;   // Used for overflow checks
 
   /**
    * Calculate the amount of fyDai a user would get for given amount of VYDai.
@@ -342,7 +342,7 @@ library VariableYieldMath {
   function fyDaiOutForVYDaiIn(
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount,
     uint128 timeTillMaturity, int128 k, int128 g, int128 c)
-  internal pure returns(uint128) {
+  public pure returns(uint128) {
     require(c > 0, "YieldMath: c must be positive");
 
     return _fyDaiOutForVYDaiIn(vyDaiReserves, fyDaiReserves, vyDaiAmount, _computeA(timeTillMaturity, k, g), c);
@@ -394,7 +394,7 @@ library VariableYieldMath {
   function vyDaiOutForFYDaiIn(
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount,
     uint128 timeTillMaturity, int128 k, int128 g, int128 c)
-  internal pure returns(uint128) {
+  public pure returns(uint128) {
     require(c > 0, "YieldMath: c must be positive");
 
     return _vyDaiOutForFYDaiIn(vyDaiReserves, fyDaiReserves, fyDaiAmount, _computeA(timeTillMaturity, k, g), c);
@@ -452,7 +452,7 @@ library VariableYieldMath {
   function fyDaiInForVYDaiOut(
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount,
     uint128 timeTillMaturity, int128 k, int128 g, int128 c)
-  internal pure returns(uint128) {
+  public pure returns(uint128) {
     require(c > 0, "YieldMath: c must be positive");
 
     return _fyDaiInForVYDaiOut(vyDaiReserves, fyDaiReserves, vyDaiAmount, _computeA(timeTillMaturity, k, g), c);
@@ -505,7 +505,7 @@ library VariableYieldMath {
   function vyDaiInForFYDaiOut(
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount,
     uint128 timeTillMaturity, int128 k, int128 g, int128 c)
-  internal pure returns(uint128) {
+  public pure returns(uint128) {
     require(c > 0, "YieldMath: c must be positive");
 
     return _vyDaiInForFYDaiOut(vyDaiReserves, fyDaiReserves, fyDaiAmount, _computeA(timeTillMaturity, k, g), c);
@@ -579,7 +579,7 @@ library VariableYieldMath {
   function fyDaiOutForVYDaiInNormalized(
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount,
     uint128 timeTillMaturity, int128 k, int128 g, int128 c0, int128 c)
-  internal pure returns(uint128) {
+  external pure returns(uint128) {
     uint256 normalizedVYDaiReserves = c0.mulu(vyDaiReserves);
     require(normalizedVYDaiReserves <= MAX, "YieldMath: Overflow on reserve normalization");
 
@@ -615,7 +615,7 @@ library VariableYieldMath {
   function vyDaiOutForFYDaiInNormalized(
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount,
     uint128 timeTillMaturity, int128 k, int128 g, int128 c0, int128 c)
-  internal pure returns(uint128) {
+  external pure returns(uint128) {
     uint256 normalizedVYDaiReserves = c0.mulu(vyDaiReserves);
     require(normalizedVYDaiReserves <= MAX, "YieldMath: Overflow on reserve normalization");
 
@@ -652,7 +652,7 @@ library VariableYieldMath {
   function fyDaiInForVYDaiOutNormalized(
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 vyDaiAmount,
     uint128 timeTillMaturity, int128 k, int128 g, int128 c0, int128 c)
-  internal pure returns(uint128) {
+  external pure returns(uint128) {
     uint256 normalizedVYDaiReserves = c0.mulu(vyDaiReserves);
     require(normalizedVYDaiReserves <= MAX, "YieldMath: Overflow on reserve normalization");
 
@@ -689,7 +689,7 @@ library VariableYieldMath {
   function vyDaiInForFYDaiOutNormalized(
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 fyDaiAmount,
     uint128 timeTillMaturity, int128 k, int128 g, int128 c0, int128 c)
-  internal pure returns(uint128) {
+  external pure returns(uint128) {
     uint256 normalizedVYDaiReserves = c0.mulu(vyDaiReserves);
     require(normalizedVYDaiReserves <= MAX, "YieldMath: Overflow on reserve normalization");
 
@@ -722,7 +722,7 @@ library VariableYieldMath {
   function initialReservesValue(
     uint128 vyDaiReserves, uint128 fyDaiReserves, uint128 timeTillMaturity,
     int128 k, int128 c0)
-  internal pure returns(uint128) {
+  external pure returns(uint128) {
     uint256 normalizedVYDaiReserves = c0.mulu(vyDaiReserves);
     require(normalizedVYDaiReserves <= MAX);
 

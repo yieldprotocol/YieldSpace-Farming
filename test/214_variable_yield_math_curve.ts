@@ -1,11 +1,12 @@
-const VariableYieldMath = artifacts.require('VariableYieldMathWrapper')
+const VariableYieldMathWrapper = artifacts.require('VariableYieldMathWrapper')
+const VariableYieldMath = artifacts.require('VariableYieldMath')
 
 // @ts-ignore
 import helper from 'ganache-time-traveler'
-import { Contract } from './shared/fixtures'
 // @ts-ignore
 import { BN } from '@openzeppelin/test-helpers'
 import { expect } from 'chai'
+import { Contract } from './shared/fixtures'
 
 /**
  * Throws given message unless given condition is true.
@@ -46,12 +47,17 @@ contract('VariableYieldMath - Curve', async (accounts) => {
   ]
   const timeTillMaturity = ['0', '40', '4000', '400000', '40000000']
 
+  before(async () => {
+    const yieldMathLibrary = await VariableYieldMath.new()
+    await VariableYieldMathWrapper.link(yieldMathLibrary)
+  })
+
   beforeEach(async () => {
     snapshot = await helper.takeSnapshot()
     snapshotId = snapshot['result']
 
     // Setup YieldMathDAIWrapper
-    yieldMath = await VariableYieldMath.new()
+    yieldMath = await VariableYieldMathWrapper.new()
   })
 
   afterEach(async () => {

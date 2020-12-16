@@ -1,14 +1,15 @@
-const VariableYieldMath = artifacts.require('VariableYieldMathWrapper')
+const VariableYieldMathWrapper = artifacts.require('VariableYieldMathWrapper')
+const VariableYieldMath = artifacts.require('VariableYieldMath')
 
 // @ts-ignore
 import helper from 'ganache-time-traveler'
-import { Contract } from './shared/fixtures'
 // @ts-ignore
 import { BN } from '@openzeppelin/test-helpers'
 import { expect } from 'chai'
 // const { bignumber, add, subtract, multiply, divide, pow, floor } = require('mathjs')
 import { sellVYDaiNormalized, sellFYDaiNormalized, buyVYDaiNormalized, buyFYDaiNormalized } from './shared/yieldspace'
 const { bignumber, floor, multiply } = require('mathjs')
+import { Contract } from './shared/fixtures'
 
 const ONE = new BN('1')
 const TWO = new BN('2')
@@ -87,25 +88,20 @@ contract('VariableYieldMath - Surface', async (accounts) => {
     // '40000000',
     '80000000',
   ]
-  const initialRates = [
-    '0.000101',
-    '0.0101',
-    '0.101',
-    '1.01',
-  ]
-  const normalizedRates = [
-    '0.000101',
-    '0.0101',
-    '0.101',
-    '1.01',
-  ]
+  const initialRates = ['0.000101', '0.0101', '0.101', '1.01']
+  const normalizedRates = ['0.000101', '0.0101', '0.101', '1.01']
+
+  before(async () => {
+    const yieldMathLibrary = await VariableYieldMath.new()
+    await VariableYieldMathWrapper.link(yieldMathLibrary)
+  })
 
   beforeEach(async () => {
     snapshot = await helper.takeSnapshot()
     snapshotId = snapshot['result']
 
     // Setup YieldMathWrapper
-    yieldMath = await VariableYieldMath.new()
+    yieldMath = await VariableYieldMathWrapper.new()
   })
 
   afterEach(async () => {

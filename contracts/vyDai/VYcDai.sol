@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.6.10;
+pragma solidity ^0.7.0;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -9,9 +9,9 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "../interfaces/IComptroller.sol";
 import "../interfaces/ICToken.sol";
 import "../interfaces/IUniswapV2Router.sol";
-import "../interfaces/IVYDai.sol";
 
-contract VYcDai is ERC20, IVYDai {
+
+contract VYcDai is ERC20 {
     using SafeMath for uint256;
 
     address public immutable comp;
@@ -105,7 +105,7 @@ contract VYcDai is ERC20, IVYDai {
         return cdai.balanceOf(address(this));
     }
 
-    function exchangeRate() external override view returns (uint) {
+    function exchangeRate() external view returns (uint) {
         return balance().mul(1e27).mul(cdai.exchangeRateStored()).div(totalSupply()).div(1e18);
     }
 
@@ -122,7 +122,7 @@ contract VYcDai is ERC20, IVYDai {
             path[1] = weth;
             path[2] = dai;
 
-            uniswap.swapExactTokensForTokens(_comp, uint256(0), path, address(this), now.add(1800));
+            uniswap.swapExactTokensForTokens(_comp, uint256(0), path, address(this), block.timestamp.add(1800));
         }
         uint256 _dai = IERC20(dai).balanceOf(address(this));
         if (_dai > 0) {

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.6.10;
+pragma solidity ^0.7.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./VariableYieldMath.sol";
 import "./helpers/Delegable.sol";
 import "./helpers/ERC20Permit.sol";
-import "./interfaces/IPot.sol";
 import "./interfaces/IFYDai.sol";
 import "./interfaces/ICToken.sol";
 import "./interfaces/ICPool.sol";
@@ -14,6 +14,7 @@ import "./interfaces/ICPool.sol";
 
 /// @dev The CPool contract exchanges cDai for fyDai at a price defined by a specific formula.
 contract CPool is ICPool, Delegable(), ERC20Permit {
+    using SafeMath for uint256;
 
     event Trade(uint256 maturity, address indexed from, address indexed to, int256 cDaiTokens, int256 fyDaiTokens);
     event Liquidity(uint256 maturity, address indexed from, address indexed to, int256 cDaiTokens, int256 fyDaiTokens, int256 poolTokens);
@@ -41,7 +42,7 @@ contract CPool is ICPool, Delegable(), ERC20Permit {
     /// @dev Trading can only be done before maturity
     modifier beforeMaturity() {
         require(
-            now < maturity,
+            block.timestamp < maturity,
             "Pool: Too late"
         );
         _;
@@ -220,7 +221,7 @@ contract CPool is ICPool, Delegable(), ERC20Permit {
             cDaiReserves,
             fyDaiReserves,
             cDaiIn,
-            toUint128(maturity - now), // This can't be called after maturity
+            toUint128(maturity - block.timestamp), // This can't be called after maturity
             k,
             g1,
             c0,
@@ -288,7 +289,7 @@ contract CPool is ICPool, Delegable(), ERC20Permit {
             getCDaiReserves(),
             getFYDaiReserves(),
             cDaiOut,
-            toUint128(maturity - now), // This can't be called after maturity
+            toUint128(maturity - block.timestamp), // This can't be called after maturity
             k,
             g2,
             c0,
@@ -349,7 +350,7 @@ contract CPool is ICPool, Delegable(), ERC20Permit {
             getCDaiReserves(),
             getFYDaiReserves(),
             fyDaiIn,
-            toUint128(maturity - now), // This can't be called after maturity
+            toUint128(maturity - block.timestamp), // This can't be called after maturity
             k,
             g2,
             c0,
@@ -413,7 +414,7 @@ contract CPool is ICPool, Delegable(), ERC20Permit {
             cDaiReserves,
             fyDaiReserves,
             fyDaiOut,
-            toUint128(maturity - now), // This can't be called after maturity
+            toUint128(maturity - block.timestamp), // This can't be called after maturity
             k,
             g1,
             c0,
