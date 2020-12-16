@@ -1,4 +1,5 @@
-const VariableYieldMath = artifacts.require('VariableYieldMathWrapper')
+const VariableYieldMathWrapper = artifacts.require('VariableYieldMathWrapper')
+const VariableYieldMath = artifacts.require('VariableYieldMath')
 
 // @ts-ignore
 import helper from 'ganache-time-traveler'
@@ -39,12 +40,17 @@ contract('VariableYieldMath - Base', async (accounts) => {
   const g1 = new BN('950').mul(ONE64).div(new BN('1000')) // Sell vyDai to the pool
   const g2 = new BN('1000').mul(ONE64).div(new BN('950')) // Sell fyDai to the pool
 
+  before(async () => {
+    const yieldMathLibrary = await VariableYieldMath.new()
+    await VariableYieldMathWrapper.link(yieldMathLibrary)
+  })
+
   beforeEach(async () => {
     snapshot = await helper.takeSnapshot()
     snapshotId = snapshot['result']
 
     // Setup VariableYieldMathDAIWrapper
-    yieldMath = await VariableYieldMath.new()
+    yieldMath = await VariableYieldMathWrapper.new()
   })
 
   afterEach(async () => {

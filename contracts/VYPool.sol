@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.6.10;
+pragma solidity ^0.7.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./VariableYieldMath.sol";
 import "./helpers/Delegable.sol";
 import "./helpers/ERC20Permit.sol";
@@ -14,6 +15,7 @@ import "@nomiclabs/buidler/console.sol";
 
 /// @dev The VYPool contract exchanges vyDai for fyDai at a price defined by a specific formula.
 contract VYPool is IVYPool, Delegable(), ERC20Permit {
+    using SafeMath for uint256;
 
     event Trade(uint256 maturity, address indexed from, address indexed to, int256 vyDaiTokens, int256 fyDaiTokens);
     event Liquidity(uint256 maturity, address indexed from, address indexed to, int256 vyDaiTokens, int256 fyDaiTokens, int256 poolTokens);
@@ -28,7 +30,6 @@ contract VYPool is IVYPool, Delegable(), ERC20Permit {
     IFYDai public override fyDai;
 
     constructor(IVYDai vyDai_, IFYDai fyDai_, string memory name_, string memory symbol_)
-        public
         ERC20Permit(name_, symbol_)
     {
         vyDai = vyDai_;
@@ -41,7 +42,7 @@ contract VYPool is IVYPool, Delegable(), ERC20Permit {
     /// @dev Trading can only be done before maturity
     modifier beforeMaturity() {
         require(
-            now < maturity,
+            block.timestamp < maturity,
             "Pool: Too late"
         );
         _;
@@ -199,7 +200,7 @@ contract VYPool is IVYPool, Delegable(), ERC20Permit {
             vyDaiReserves,
             fyDaiReserves,
             vyDaiIn,
-            toUint128(maturity - now), // This can't be called after maturity
+            toUint128(maturity - block.timestamp), // This can't be called after maturity
             k,
             g1,
             c0,
@@ -246,7 +247,7 @@ contract VYPool is IVYPool, Delegable(), ERC20Permit {
             getVYDaiReserves(),
             getFYDaiReserves(),
             vyDaiOut,
-            toUint128(maturity - now), // This can't be called after maturity
+            toUint128(maturity - block.timestamp), // This can't be called after maturity
             k,
             g2,
             c0,
@@ -286,7 +287,7 @@ contract VYPool is IVYPool, Delegable(), ERC20Permit {
             getVYDaiReserves(),
             getFYDaiReserves(),
             fyDaiIn,
-            toUint128(maturity - now), // This can't be called after maturity
+            toUint128(maturity - block.timestamp), // This can't be called after maturity
             k,
             g2,
             c0,
@@ -330,7 +331,7 @@ contract VYPool is IVYPool, Delegable(), ERC20Permit {
             vyDaiReserves,
             fyDaiReserves,
             fyDaiOut,
-            toUint128(maturity - now), // This can't be called after maturity
+            toUint128(maturity - block.timestamp), // This can't be called after maturity
             k,
             g1,
             c0,

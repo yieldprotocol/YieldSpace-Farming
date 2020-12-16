@@ -1,6 +1,7 @@
 const VYPool = artifacts.require('VYPool')
 const VYDai = artifacts.require('VYDaiMock')
 const FYDai = artifacts.require('FYDaiMock')
+const VariableYieldMath = artifacts.require('VariableYieldMath')
 
 const { bignumber, floor, multiply } = require('mathjs')
 import { keccak256, toUtf8Bytes } from 'ethers/lib/utils'
@@ -56,6 +57,11 @@ contract('Pool', async (accounts) => {
   let vyDai: Contract
 
   let maturity1: number
+
+  before(async () => {
+    const yieldMathLibrary = await VariableYieldMath.new()
+    await VYPool.link(yieldMathLibrary)
+  })
 
   beforeEach(async () => {
     snapshot = await helper.takeSnapshot()

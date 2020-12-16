@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.6.10;
+pragma solidity ^0.7.0;
 
 import "../helpers/ERC20Permit.sol";
 import "../interfaces/IFYDai.sol";
@@ -7,7 +7,7 @@ import "../interfaces/IFYDai.sol";
 contract FYDaiMock is IFYDai, ERC20Permit {
     uint256 public override maturity;
 
-    constructor (uint256 maturity_) public ERC20Permit("Test", "TST") {
+    constructor (uint256 maturity_) ERC20Permit("Test", "TST") {
         maturity = maturity_;
     }
 

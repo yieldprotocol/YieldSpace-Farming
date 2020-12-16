@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Adapted from https://github.com/OpenZeppelin/openzeppelin-contracts/blob/53516bc555a454862470e7860a9b5254db4d00f5/contracts/token/ERC20/ERC20Permit.sol
-pragma solidity ^0.6.0;
+pragma solidity ^0.7.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "../interfaces/IERC2612.sol";
@@ -19,7 +19,7 @@ abstract contract ERC20Permit is ERC20, IERC2612 {
     bytes32 public immutable PERMIT_TYPEHASH = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
     bytes32 public immutable DOMAIN_SEPARATOR;
 
-    constructor(string memory name_, string memory symbol_) internal ERC20(name_, symbol_) {
+    constructor(string memory name_, string memory symbol_) ERC20(name_, symbol_) {
         uint256 chainId;
         assembly {
             chainId := chainid()
