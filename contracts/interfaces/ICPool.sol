@@ -17,7 +17,7 @@ interface ICPool is IPoolBase {
     function sellCDaiAtRate(uint128 cDaiIn, int128 exchangeRate) external view returns(uint128);
     function buyCDaiAtRate(uint128 cDaiOut, int128 exchangeRate) external view returns(uint128);
 
-    // To be moved to IPoolBase when Pool.sol implements them
+    // To be moved to IPoolBase when VYPool.sol implements them
     function sellFYDaiCurrent(uint128 fyDaiIn) external returns(uint128);
     function buyFYDaiCurrent(uint128 fyDaiOut) external returns(uint128);
     function sellFYDaiAtRate(uint128 fyDaiIn, int128 exchangeRate) external view returns(uint128);
