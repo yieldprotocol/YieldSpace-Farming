@@ -1,3 +1,5 @@
+import { artifacts, contract } from "hardhat";
+
 const IERC20 = artifacts.require('IERC20')
 const CDaiStrategy = artifacts.require('CDaiStrategy')
 const ComptrollerMock = artifacts.require('ComptrollerMock')
