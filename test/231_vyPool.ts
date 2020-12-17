@@ -41,7 +41,7 @@ function almostEqual(x: any, y: any, p: any) {
   expect(diff).to.be.bignumber.lt(pb)
 }
 
-contract('Pool', async (accounts) => {
+contract('VYPool', async (accounts) => {
   let [owner, user1, user2, operator, from, to] = accounts
 
   // These values impact the pool results

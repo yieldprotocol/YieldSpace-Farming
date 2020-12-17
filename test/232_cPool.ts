@@ -1,4 +1,4 @@
-const CPool = artifacts.require('CPool2')
+const CPool = artifacts.require('CPool')
 const CDai = artifacts.require('CDaiMock')
 const FYDai = artifacts.require('FYDaiMock')
 const VariableYieldMath = artifacts.require('VariableYieldMath')
@@ -41,7 +41,7 @@ function almostEqual(x: any, y: any, p: any) {
   expect(diff).to.be.bignumber.lt(pb)
 }
 
-contract('Pool', async (accounts) => {
+contract('CPool', async (accounts) => {
   let [owner, user1, user2, operator, from, to] = accounts
 
   // These values impact the pool results
