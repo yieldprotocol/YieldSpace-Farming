@@ -10,8 +10,10 @@ import "../interfaces/IComptroller.sol";
 import "../interfaces/ICToken.sol";
 import "../interfaces/IUniswapV2Router.sol";
 
-
-contract VYcDai is ERC20 {
+/// @dev CDaiStrategy is an ERC20 token that takes deposits of Dai and cDai.
+/// Dai deposits are wrapped in cDai.
+/// Comp rewards can be harvested and converted to cDai, which is added to the reserves.
+contract CDaiStrategy is ERC20 {
     using SafeMath for uint256;
 
     address public immutable comp;
@@ -28,7 +30,7 @@ contract VYcDai is ERC20 {
     event Harvested(uint256 wantEarned, uint256 lifetimeEarned);
 
     constructor(IComptroller _comptroller, ICToken _cdai, IUniswapV2Router _uniswap)
-        public ERC20("VY cDai", "vycDai")
+        public ERC20("VY cDai", "cDaiStrategy")
     {
         comptroller = _comptroller;
         comp = _comptroller.getCompAddress();
