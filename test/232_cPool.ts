@@ -4,11 +4,12 @@ const CPool = artifacts.require('CPool')
 const CDai = artifacts.require('CDaiMock')
 const FYDai = artifacts.require('FYDaiMock')
 const VariableYieldMath = artifacts.require('VariableYieldMath')
+const ComptrollerMock = artifacts.require('ComptrollerMock')
+const UniswapV2RouterMock = artifacts.require('UniswapV2RouterMock')
 
-const { bignumber, floor, multiply } = require('mathjs')
-import { keccak256, toUtf8Bytes } from 'ethers/lib/utils'
+const { floor } = require('mathjs')
 import * as helper from 'ganache-time-traveler'
-import { toWad, toRay, mulRay } from './shared/utils'
+import { toWad } from './shared/utils'
 import {
   mint,
   burn,
@@ -21,8 +22,6 @@ import {
 import { BN, expectRevert } from '@openzeppelin/test-helpers'
 import { assert, expect } from 'chai'
 import { Contract } from './shared/fixtures'
-
-const ONE64 = new BN('18446744073709551616') // In 64.64 format
 
 function toBigNumber(x: any) {
   if (typeof x == 'object') x = x.toString()
@@ -59,6 +58,8 @@ contract('CPool', async (accounts) => {
   let snapshotId: string
 
   let pool: Contract
+  let comptroller: Contract
+  let uniswapRouter: Contract
   let fyDai1: Contract
   let cDai: Contract
 
@@ -81,8 +82,15 @@ contract('CPool', async (accounts) => {
     cDai = await CDai.new()
     await cDai.setExchangeRate('2000000000000000000000000000') // c0 = 2.0
 
+
+    // Set Comptroller
+    comptroller = await ComptrollerMock.new()
+
+    // Set Uniswap Router
+    uniswapRouter = await UniswapV2RouterMock.new()
+
     // Setup Pool
-    pool = await CPool.new(cDai.address, fyDai1.address, 'Name', 'Symbol', { from: owner })
+    pool = await CPool.new(cDai.address, fyDai1.address, comptroller.address, uniswapRouter.address, 'Name', 'Symbol', { from: owner })
 
     await cDai.setExchangeRate('3000000000000000000000000000') // exchangeRate = 3.0
   })
