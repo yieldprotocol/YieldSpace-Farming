@@ -28,6 +28,7 @@
     "ethers": "^5.0.7",
     "ganache-time-traveler": "^1.0.14",
     "hardhat": "^2.0.5",
+    "hardhat-deploy": "^0.7.0-beta.38",
     "hardhat-gas-reporter": "^1.0.3",
     "mathjs": "^7.3.0",
     "mocha": "^7.1.0",
