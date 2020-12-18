@@ -2,6 +2,7 @@
 pragma solidity ^0.7.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 // import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import "../interfaces/IComptroller.sol";
@@ -11,7 +12,7 @@ import "../interfaces/IUniswapV2Router.sol";
 import "../CPool.sol";
 
 /// @dev CPoolStrategy is a CPool that allows for Comp rewards to be harvested and converted to cDai, which is added to the reserves.
-contract CPoolStrategy is CPool {
+contract CPoolStrategy is CPool, Ownable {
 
     IERC20 public immutable comp;
     IUniswapV2Router public immutable uniswap;
@@ -22,6 +23,7 @@ contract CPoolStrategy is CPool {
 
     constructor(ICToken cDai_, IFYDai fyDai_, IComptroller comptroller_, IUniswapV2Router uniswap_, string memory name_, string memory symbol_)
         CPool(cDai_, fyDai_, name_, symbol_)
+        Ownable()
     {
         comptroller = comptroller_;
         comp = IERC20(comptroller_.getCompAddress());
@@ -29,7 +31,7 @@ contract CPoolStrategy is CPool {
     }
 
     /// @dev Claim comp, sell it for Dai, and mint cDai which remains in the CPool reserves
-    function harvest() public {
+    function harvest() public onlyOwner {
         // require(msg.sender == strategist || msg.sender == governance, "!authorized");
         IERC20 dai = IERC20(cDai.underlying());
 
