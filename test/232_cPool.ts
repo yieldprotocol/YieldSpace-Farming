@@ -1,3 +1,5 @@
+import { artifacts, contract, web3 } from "hardhat";
+
 const CPool = artifacts.require('CPool')
 const CDai = artifacts.require('CDaiMock')
 const FYDai = artifacts.require('FYDaiMock')
@@ -5,8 +7,7 @@ const VariableYieldMath = artifacts.require('VariableYieldMath')
 
 const { bignumber, floor, multiply } = require('mathjs')
 import { keccak256, toUtf8Bytes } from 'ethers/lib/utils'
-// @ts-ignore
-import helper from 'ganache-time-traveler'
+import * as helper from 'ganache-time-traveler'
 import { toWad, toRay, mulRay } from './shared/utils'
 import {
   mint,
@@ -41,6 +42,11 @@ function almostEqual(x: any, y: any, p: any) {
   expect(diff).to.be.bignumber.lt(pb)
 }
 
+async function currentTimestamp() {
+  const block = await web3.eth.getBlockNumber()
+  return parseInt((await web3.eth.getBlock(block)).timestamp.toString())
+}
+
 contract('CPool', async (accounts) => {
   let [owner, user1, user2, operator, from, to] = accounts
 
@@ -68,8 +74,7 @@ contract('CPool', async (accounts) => {
     snapshotId = snapshot['result']
 
     // Setup fyDai
-    const block = await web3.eth.getBlockNumber()
-    maturity1 = (await web3.eth.getBlock(block)).timestamp + 31556952 // One year
+    maturity1 = await currentTimestamp() + 31556952 // One year
     fyDai1 = await FYDai.new(maturity1)
 
     // Setup cDai

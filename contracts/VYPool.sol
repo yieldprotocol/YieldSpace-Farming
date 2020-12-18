@@ -10,7 +10,6 @@ import "./helpers/ERC20Permit.sol";
 import "./interfaces/IFYDai.sol";
 import "./interfaces/IVYDai.sol";
 import "./interfaces/IVYPool.sol";
-import "@nomiclabs/buidler/console.sol";
 
 
 /// @dev The VYPool contract exchanges vyDai for fyDai at a price defined by a specific formula.

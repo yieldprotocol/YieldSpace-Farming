@@ -1,16 +1,16 @@
-import { usePlugin } from "@nomiclabs/buidler/config";
-
-usePlugin("@nomiclabs/buidler-truffle5");
-usePlugin("solidity-coverage");
-usePlugin("buidler-gas-reporter");
+import "@nomiclabs/hardhat-truffle5";
+import "solidity-coverage";
+import "hardhat-gas-reporter";
 
 export default {
-    defaultNetwork: "buidlerevm",
-    solc: {
+    defaultNetwork: "hardhat",
+    solidity: {
         version: "0.7.5",
-        optimizer: {
-            enabled: true,
-            runs: 20000
+        settings: {
+            optimizer: {
+                enabled: true,
+                runs: 20000
+            },
         },
     },
     gasReporter: {

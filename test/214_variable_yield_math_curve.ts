@@ -1,8 +1,9 @@
+import { artifacts, contract } from "hardhat";
+
 const VariableYieldMathWrapper = artifacts.require('VariableYieldMathWrapper')
 const VariableYieldMath = artifacts.require('VariableYieldMath')
 
-// @ts-ignore
-import helper from 'ganache-time-traveler'
+import * as helper from 'ganache-time-traveler'
 // @ts-ignore
 import { BN } from '@openzeppelin/test-helpers'
 import { expect } from 'chai'
