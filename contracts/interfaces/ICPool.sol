@@ -8,8 +8,8 @@ import "./ICToken.sol";
 interface ICPool is IPoolBase {
     function cDai() external view returns(ICToken);
     function getCDaiReserves() external view returns(uint128);
-    function sellCDai(address from, address to, uint128 cDaiIn) external returns(uint128);
-    function buyCDai(address from, address to, uint128 cDaiOut) external returns(uint128);
+    function sellDai(address from, address to, uint128 daiIn) external returns(uint128);
+    function buyDai(address from, address to, uint128 daiOut) external returns(uint128);
     function sellCDaiAtRate(uint128 cDaiIn, uint256 exchangeRate) external view returns(uint128);
     function buyCDaiAtRate(uint128 cDaiOut, uint256 exchangeRate) external view returns(uint128);
 
