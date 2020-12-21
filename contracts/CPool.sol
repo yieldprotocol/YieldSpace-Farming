@@ -460,7 +460,6 @@ contract CPool is ICPool, Delegable, Ownable, ERC20Permit {
 
     /// @dev Claim comp, sell it for Dai, and mint cDai which remains in the CPool reserves
     function harvest() public onlyOwner {
-        // require(msg.sender == strategist || msg.sender == governance, "!authorized");
         IERC20 dai = IERC20(cDai.underlying());
 
         uint256 compAmount = claimComp();
