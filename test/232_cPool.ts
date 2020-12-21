@@ -357,7 +357,7 @@ contract('CPool', async (accounts) => {
         almostEqual(fyDaiOutPreview, floor(expectedFYDaiOut).toFixed(), cDaiIn.div(new BN('1000000')))
       })
 
-      it.only('sells dai', async () => {
+      it('sells dai', async () => {
         const cDaiReserves = await pool.getCDaiReserves()
         const fyDaiReserves = await pool.getFYDaiReserves()
         const cDaiIn = new BN(toWad(1).toString())

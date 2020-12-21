@@ -191,14 +191,14 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
 
     /// @dev Returns how much fyDai would be obtained by selling `cDaiIn` cDai at a given exchange rate.
     /// @param cDaiIn Amount of cDai hypothetically sold.
-    /// @param exchangeRate cDai/Dai exchange rate, in 64.64
+    /// @param exchangeRate cDai/Dai exchange rate, in RAY
     /// @return Amount of fyDai hypothetically bought.
-    function sellCDaiAtRate(uint128 cDaiIn, int128 exchangeRate)
+    function sellCDaiAtRate(uint128 cDaiIn, uint256 exchangeRate)
         public view override
         beforeMaturity
         returns(uint128)
     {
-        uint128 cDaiReserves = getCDaiReserves();
+        uint128 cDaiReserves = getCDaiReservesAtRate(exchangeRate);
         uint128 fyDaiReserves = getFYDaiReserves();
 
         uint128 fyDaiOut = VariableYieldMath.fyDaiOutForVYDaiInNormalized(
@@ -209,7 +209,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
             k,
             g1,
             c0,
-            exchangeRate
+            int128((exchangeRate << 64) / 10 ** 27)
         );
 
         require(
@@ -227,7 +227,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         public view override
         returns(uint128)
     {
-        return sellCDaiAtRate(cDaiIn, int128((cDai.exchangeRateStored() << 64) / 10 ** 27));
+        return sellCDaiAtRate(cDaiIn, cDai.exchangeRateStored());
     }
 
     /// @dev Returns how much fyDai would be obtained by selling `cDaiIn` cDai, updating the exchange rate
@@ -237,7 +237,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         public override
         returns(uint128)
     {
-        return sellCDaiAtRate(cDaiIn, int128((cDai.exchangeRateCurrent() << 64) / 10 ** 27));
+        return sellCDaiAtRate(cDaiIn, cDai.exchangeRateCurrent());
     }
 
     /// @dev Sell cDai for fyDai
@@ -251,7 +251,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         onlyHolderOrDelegate(from, "CPool: Only Holder Or Delegate")
         returns(uint128)
     {
-        uint128 fyDaiOut = sellCDaiPreview(cDaiIn); // TODO: Should use sellCDaiCurrent
+        uint128 fyDaiOut = sellCDaiCurrent(cDaiIn);
 
         cDai.transferFrom(from, address(this), cDaiIn);
         fyDai.transfer(to, fyDaiOut);
@@ -274,7 +274,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
     {
         uint256 exchangeRate = cDai.exchangeRateCurrent();
         uint128 cDaiIn = toUint128(divd(uint256(daiIn), exchangeRate));
-        uint128 fyDaiOut = sellCDaiAtRate(cDaiIn, int128((exchangeRate << 64) / 10 ** 27));
+        uint128 fyDaiOut = sellCDaiAtRate(cDaiIn, exchangeRate);
 
         dai.transferFrom(from, address(this), daiIn);
         cDai.mint(daiIn); // TODO: Optional when getCDaiReserves is refactored to add dai and cDai balances in cDai terms
@@ -286,22 +286,22 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
 
     /// @dev Returns how much fyDai would be required to buy `cDaiOut` cDai at a given exchange rate.
     /// @param cDaiOut Amount of cDai hypothetically desired.
-    /// @param exchangeRate cDai/Dai exchange rate, in 64.64
+    /// @param exchangeRate cDai/Dai exchange rate, in RAY
     /// @return Amount of fyDai hypothetically required.
-    function buyCDaiAtRate(uint128 cDaiOut, int128 exchangeRate)
+    function buyCDaiAtRate(uint128 cDaiOut, uint256 exchangeRate)
         public view override
         beforeMaturity
         returns(uint128)
     {
         return VariableYieldMath.fyDaiInForVYDaiOutNormalized(
-            getCDaiReserves(),
+            getCDaiReservesAtRate(exchangeRate),
             getFYDaiReserves(),
             cDaiOut,
             toUint128(maturity - block.timestamp), // This can't be called after maturity
             k,
             g2,
             c0,
-            exchangeRate
+            int128((exchangeRate << 64) / 10 ** 27)
         );
     }
 
@@ -312,7 +312,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         public view override
         returns(uint128)
     {
-        return buyCDaiAtRate(cDaiOut, int128((cDai.exchangeRateStored() << 64) / 10 ** 27));
+        return buyCDaiAtRate(cDaiOut, cDai.exchangeRateStored());
     }
 
     /// @dev Returns how much fyDai would be required to buy `cDaiOut` cDai, updating the exchange rate
@@ -322,7 +322,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         public override
         returns(uint128)
     {
-        return buyCDaiAtRate(cDaiOut, int128((cDai.exchangeRateCurrent() << 64) / 10 ** 27));
+        return buyCDaiAtRate(cDaiOut, cDai.exchangeRateCurrent());
     }
 
     /// @dev Buy cDai for fyDai
@@ -336,7 +336,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         onlyHolderOrDelegate(from, "CPool: Only Holder Or Delegate")
         returns(uint128)
     {
-        uint128 fyDaiIn = buyCDaiPreview(cDaiOut); // TODO: Should use buyCDaiCurrent
+        uint128 fyDaiIn = buyCDaiCurrent(cDaiOut);
 
         fyDai.transferFrom(from, address(this), fyDaiIn);
         cDai.transfer(to, cDaiOut);
@@ -352,7 +352,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         public view override
         returns(uint128)
     {
-        return sellFYDaiAtRate(fyDaiIn, int128((cDai.exchangeRateStored() << 64) / 10 ** 27));
+        return sellFYDaiAtRate(fyDaiIn, cDai.exchangeRateStored());
     }
 
     /// @dev Returns how much cDai would be obtained by selling `fyDaiIn` fyDai, updating the exchange rate
@@ -362,27 +362,27 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         public override
         returns(uint128)
     {
-        return sellFYDaiAtRate(fyDaiIn, int128((cDai.exchangeRateCurrent() << 64) / 10 ** 27));
+        return sellFYDaiAtRate(fyDaiIn, cDai.exchangeRateCurrent());
     }
 
     /// @dev Returns how much cDai would be obtained by selling `fyDaiIn` fyDai.
     /// @param fyDaiIn Amount of fyDai hypothetically sold.
-    /// @param exchangeRate cDai/Dai exchange rate, in 64.64
+    /// @param exchangeRate cDai/Dai exchange rate, in RAY
     /// @return Amount of cDai hypothetically bought.
-    function sellFYDaiAtRate(uint128 fyDaiIn, int128 exchangeRate)
+    function sellFYDaiAtRate(uint128 fyDaiIn, uint256 exchangeRate)
         public view override
         beforeMaturity
         returns(uint128)
     {
         return VariableYieldMath.vyDaiOutForFYDaiInNormalized(
-            getCDaiReserves(),
+            getCDaiReservesAtRate(exchangeRate),
             getFYDaiReserves(),
             fyDaiIn,
             toUint128(maturity - block.timestamp), // This can't be called after maturity
             k,
             g2,
             c0,
-            exchangeRate
+            int128((exchangeRate << 64) / 10 ** 27)
         );
     }
 
@@ -397,7 +397,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         onlyHolderOrDelegate(from, "CPool: Only Holder Or Delegate")
         returns(uint128)
     {
-        uint128 cDaiOut = sellFYDaiPreview(fyDaiIn); // TODO: Should use sellFYDaiCurrent
+        uint128 cDaiOut = sellFYDaiCurrent(fyDaiIn);
 
         fyDai.transferFrom(from, address(this), fyDaiIn);
         cDai.transfer(to, cDaiOut);
@@ -413,7 +413,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         public view override
         returns(uint128)
     {
-        return buyFYDaiAtRate(fyDaiOut, int128((cDai.exchangeRateStored() << 64) / 10 ** 27));
+        return buyFYDaiAtRate(fyDaiOut, cDai.exchangeRateStored());
     }
 
     /// @dev Returns how much cDai would be required to buy `fyDaiOut` fyDai, updating the exchange rate
@@ -423,19 +423,19 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         public override
         returns(uint128)
     {
-        return buyFYDaiAtRate(fyDaiOut, int128((cDai.exchangeRateCurrent() << 64) / 10 ** 27));
+        return buyFYDaiAtRate(fyDaiOut, cDai.exchangeRateCurrent());
     }
 
     /// @dev Returns how much cDai would be required to buy `fyDaiOut` fyDai.
     /// @param fyDaiOut Amount of fyDai hypothetically desired.
-    /// @param exchangeRate cDai/Dai exchange rate, in 64.64
+    /// @param exchangeRate cDai/Dai exchange rate, in RAY
     /// @return Amount of cDai hypothetically required.
-    function buyFYDaiAtRate(uint128 fyDaiOut, int128 exchangeRate)
+    function buyFYDaiAtRate(uint128 fyDaiOut, uint256 exchangeRate)
         public view override
         beforeMaturity
         returns(uint128)
     {
-        uint128 cDaiReserves = getCDaiReserves();
+        uint128 cDaiReserves = getCDaiReservesAtRate(exchangeRate);
         uint128 fyDaiReserves = getFYDaiReserves();
 
         uint128 cDaiIn = VariableYieldMath.vyDaiInForFYDaiOutNormalized(
@@ -446,7 +446,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
             k,
             g1,
             c0,
-            exchangeRate
+            int128((exchangeRate << 64) / 10 ** 27)
         );
 
         require(
@@ -468,7 +468,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         onlyHolderOrDelegate(from, "CPool: Only Holder Or Delegate")
         returns(uint128)
     {
-        uint128 cDaiIn = buyFYDaiPreview(fyDaiOut); // TODO: Should use buyFYDaiCurrent
+        uint128 cDaiIn = buyFYDaiCurrent(fyDaiOut);
 
         cDai.transferFrom(from, address(this), cDaiIn);
         fyDai.transfer(to, fyDaiOut);
@@ -491,6 +491,15 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         returns(uint128)
     {
         return toUint128(cDai.balanceOf(address(this)));
+    }
+
+
+    /// @dev Returns the cDai reserves for a given dai/cDai exchange rate
+    function getCDaiReservesAtRate(uint256 exchangeRate)
+        public view
+        returns(uint128)
+    {
+        return toUint128(cDai.balanceOf(address(this)).add(divd(dai.balanceOf(address(this)), exchangeRate)));
     }
 
     /// @dev Claim comp, sell it for Dai, and mint cDai which remains in the CPool reserves
