@@ -7,7 +7,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./VariableYieldMath.sol";
 import "./helpers/Delegable.sol";
+import "./helpers/DecimalMath.sol";
 import "./helpers/ERC20Permit.sol";
+import "./interfaces/IDai.sol";
 import "./interfaces/IFYDai.sol";
 import "./interfaces/ICToken.sol";
 import "./interfaces/ICPool.sol";
@@ -17,7 +19,7 @@ import "./interfaces/IUniswapV2Router.sol";
 
 
 /// @dev The CPool contract exchanges cDai for fyDai at a price defined by a specific formula.
-contract CPool is ICPool, Delegable, Ownable, ERC20Permit {
+contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
     using SafeMath for uint256;
 
     event Trade(uint256 maturity, address indexed from, address indexed to, int256 cDaiTokens, int256 fyDaiTokens);
@@ -30,6 +32,7 @@ contract CPool is ICPool, Delegable, Ownable, ERC20Permit {
     uint128 immutable public maturity;
     int128 immutable public c0;
 
+    IDai public dai;
     ICToken public override cDai;
     IFYDai public override fyDai;
 
@@ -42,6 +45,7 @@ contract CPool is ICPool, Delegable, Ownable, ERC20Permit {
         Delegable()
         Ownable()
     {
+        dai = IDai(cDai_.underlying());
         cDai = cDai_;
         fyDai = fyDai_;
         comptroller = comptroller_;
@@ -241,6 +245,29 @@ contract CPool is ICPool, Delegable, Ownable, ERC20Permit {
         returns(uint128)
     {
         uint128 fyDaiOut = sellCDaiPreview(cDaiIn);
+
+        cDai.transferFrom(from, address(this), cDaiIn);
+        fyDai.transfer(to, fyDaiOut);
+        emit Trade(maturity, from, to, -toInt256(cDaiIn), toInt256(fyDaiOut));
+
+        return fyDaiOut;
+    }
+
+    /// @dev Sell dai for fyDai
+    /// The dai is internally converted to cDai
+    /// The trader needs to have called `dai.approve`
+    /// @param from Wallet providing the dai being sold. Must have approved the operator with `pool.addDelegate(operator)`.
+    /// @param to Wallet receiving the fyDai being bought
+    /// @param daiIn Amount of dai being sold that will be taken from the user's wallet
+    /// @return Amount of fyDai that will be deposited on `to` wallet
+    function sellDai(address from, address to, uint128 daiIn)
+        external
+        onlyHolderOrDelegate(from, "CPool: Only Holder Or Delegate")
+        returns(uint128)
+    {
+        uint256 exchangeRate = cDai.exchangeRateCurrent();
+        uint128 cDaiIn = toUint128(divd(uint256(daiIn), exchangeRate));
+        uint128 fyDaiOut = sellCDaiAtRate(cDaiIn, int128((exchangeRate << 64) / 10 ** 27));
 
         cDai.transferFrom(from, address(this), cDaiIn);
         fyDai.transfer(to, fyDaiOut);
@@ -460,7 +487,6 @@ contract CPool is ICPool, Delegable, Ownable, ERC20Permit {
 
     /// @dev Claim comp, sell it for Dai, and mint cDai which remains in the CPool reserves
     function harvest() public onlyOwner {
-        IERC20 dai = IERC20(cDai.underlying());
 
         uint256 compAmount = claimComp();
         if (compAmount > 0) {
