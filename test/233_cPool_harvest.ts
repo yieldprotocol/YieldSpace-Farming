@@ -107,7 +107,7 @@ contract('CPool', async (accounts) => {
 
     assert.equal(
       (await pool.getCDaiReserves()).toString(),
-      cDaiReservesBefore.add(new BN(toWad(3).toString())).toString()
+      cDaiReservesBefore.add(toWad(3)).toString()
     )
   })
 })

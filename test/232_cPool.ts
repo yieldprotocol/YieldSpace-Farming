@@ -10,7 +10,7 @@ const UniswapV2RouterMock = artifacts.require('UniswapV2RouterMock')
 
 const { floor } = require('mathjs')
 import * as helper from 'ganache-time-traveler'
-import { toWad } from './shared/utils'
+import { toWad, toRay, mulRay, divRay } from './shared/utils'
 import {
   mint,
   burn,
@@ -84,7 +84,7 @@ contract('CPool', async (accounts) => {
 
     // Setup cDai
     cDai = await CDai.new(dai.address)
-    await cDai.setExchangeRate('2000000000000000000000000000') // c0 = 2.0
+    await cDai.setExchangeRate(toRay(2)) // c0 = 2.0
 
 
     // Set Comptroller
@@ -96,7 +96,7 @@ contract('CPool', async (accounts) => {
     // Setup Pool
     pool = await CPool.new(cDai.address, fyDai1.address, comptroller.address, uniswapRouter.address, 'Name', 'Symbol', { from: owner })
 
-    await cDai.setExchangeRate('3000000000000000000000000000') // exchangeRate = 3.0
+    await cDai.setExchangeRate(toRay(3)) // exchangeRate = 3.0
   })
 
   afterEach(async () => {
@@ -144,7 +144,7 @@ contract('CPool', async (accounts) => {
     it('sells fyDai', async () => {
       const cDaiReserves = await pool.getCDaiReserves()
       const fyDaiReserves = await pool.getFYDaiReserves()
-      const fyDaiIn = new BN(toWad(1).toString())
+      const fyDaiIn = toWad(1)
       const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
       const timeTillMaturity = new BN(maturity1).sub(now)
 
@@ -189,7 +189,7 @@ contract('CPool', async (accounts) => {
     it('buys cDai', async () => {
       const cDaiReserves = await pool.getCDaiReserves()
       const fyDaiReserves = await pool.getFYDaiReserves()
-      const cDaiOut = new BN(toWad(1).toString())
+      const cDaiOut = toWad(1)
       const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
       const timeTillMaturity = new BN(maturity1).sub(now)
 
@@ -235,9 +235,9 @@ contract('CPool', async (accounts) => {
     it('buys dai', async () => {
       const cDaiReserves = await pool.getCDaiReserves()
       const fyDaiReserves = await pool.getFYDaiReserves()
-      const cDaiOut = new BN(toWad(1).toString())
-      // const daiOut = cDaiOut.mul(RAY).div(await cDai.exchangeRateCurrent())
-      const daiOut = cDaiOut.divn(3)
+      const cDaiOut = toWad(1)
+      const daiOut = new BN(divRay(cDaiOut.toString(), (await cDai.exchangeRateCurrent.call()).toString()).toString())
+      // const daiOut = cDaiOut.divn(3)
 
       const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
       const timeTillMaturity = new BN(maturity1).sub(now)
@@ -294,7 +294,7 @@ contract('CPool', async (accounts) => {
         const cDaiReserves = await cDai.balanceOf(pool.address)
         const fyDaiReserves = await fyDai1.balanceOf(pool.address)
         const supply = await pool.totalSupply()
-        const cDaiIn = new BN(toWad(1).toString())
+        const cDaiIn = toWad(1)
 
         await cDai.mintCDai(user1, cDaiIn, { from: owner })
         await fyDai1.mint(user1, fyDaiTokens, { from: owner })
@@ -320,7 +320,7 @@ contract('CPool', async (accounts) => {
         assert.equal(event.event, 'Liquidity')
         assert.equal(event.args.from, user1)
         assert.equal(event.args.to, user2)
-        assert.equal(event.args.cDaiTokens, oneToken.mul(-1).toString())
+        assert.equal(event.args.cDaiTokens, oneToken.neg().toString())
         assert.equal(event.args.fyDaiTokens, fyDaiIn.neg().toString())
         assert.equal(event.args.poolTokens, minted.toString())
 
@@ -334,7 +334,7 @@ contract('CPool', async (accounts) => {
         const cDaiReserves = await cDai.balanceOf(pool.address)
         const fyDaiReserves = await fyDai1.balanceOf(pool.address)
         const supply = await pool.totalSupply()
-        const lpTokensIn = new BN(toWad(1).toString())
+        const lpTokensIn = toWad(1)
 
         await pool.approve(pool.address, lpTokensIn, { from: user1 })
         const tx = await pool.burn(user1, user2, lpTokensIn, { from: user1 })
@@ -364,7 +364,7 @@ contract('CPool', async (accounts) => {
       it('sells cDai', async () => {
         const cDaiReserves = await pool.getCDaiReserves()
         const fyDaiReserves = await pool.getFYDaiReserves()
-        const cDaiIn = (new BN(toWad(3).toString())).muln(3) // TODO: Use the exchange rate
+        const cDaiIn = toWad(3).muln(3) // TODO: Use the exchange rate
         const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
         const timeTillMaturity = new BN(maturity1).sub(now)
 
@@ -410,7 +410,7 @@ contract('CPool', async (accounts) => {
       it('sells dai', async () => {
         const cDaiReserves = await pool.getCDaiReserves()
         const fyDaiReserves = await pool.getFYDaiReserves()
-        const cDaiIn = new BN(toWad(1).toString())
+        const cDaiIn = toWad(1)
         // const daiIn = cDaiIn.mul(RAY).div(await cDai.exchangeRateCurrent())
         const daiIn = cDaiIn.muln(3)
 
@@ -461,7 +461,7 @@ contract('CPool', async (accounts) => {
       it('buys fyDai', async () => {
         const cDaiReserves = await pool.getCDaiReserves()
         const fyDaiReserves = await pool.getFYDaiReserves()
-        const fyDaiOut = (new BN(toWad(1).toString())).muln(3) // TODO: Use exchange rate
+        const fyDaiOut = toWad(1).muln(3) // TODO: Use exchange rate
         const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
         const timeTillMaturity = new BN(maturity1).sub(now)
 
