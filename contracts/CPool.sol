@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.7.0;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
@@ -10,14 +11,18 @@ import "./helpers/ERC20Permit.sol";
 import "./interfaces/IFYDai.sol";
 import "./interfaces/ICToken.sol";
 import "./interfaces/ICPool.sol";
+import "./interfaces/IComptroller.sol";
+import "./interfaces/ICToken.sol";
+import "./interfaces/IUniswapV2Router.sol";
 
 
 /// @dev The CPool contract exchanges cDai for fyDai at a price defined by a specific formula.
-contract CPool is ICPool, Delegable(), ERC20Permit {
+contract CPool is ICPool, Delegable, Ownable, ERC20Permit {
     using SafeMath for uint256;
 
     event Trade(uint256 maturity, address indexed from, address indexed to, int256 cDaiTokens, int256 fyDaiTokens);
     event Liquidity(uint256 maturity, address indexed from, address indexed to, int256 cDaiTokens, int256 fyDaiTokens, int256 poolTokens);
+    event Harvested(uint256 comp, uint256 dai);
 
     int128 constant public k = int128(uint256((1 << 64)) / 126144000); // 1 / Seconds in 4 years, in 64.64
     int128 constant public g1 = int128(uint256((950 << 64)) / 1000); // To be used when selling cDai to the pool. All constants are `ufixed`, to divide them they must be converted to uint256
@@ -28,11 +33,20 @@ contract CPool is ICPool, Delegable(), ERC20Permit {
     ICToken public override cDai;
     IFYDai public override fyDai;
 
-    constructor(ICToken cDai_, IFYDai fyDai_, string memory name_, string memory symbol_)
+    IERC20 public immutable comp;
+    IUniswapV2Router public immutable uniswap;
+    IComptroller public immutable comptroller;
+
+    constructor(ICToken cDai_, IFYDai fyDai_, IComptroller comptroller_, IUniswapV2Router uniswap_, string memory name_, string memory symbol_)
         ERC20Permit(name_, symbol_)
+        Delegable()
+        Ownable()
     {
         cDai = cDai_;
         fyDai = fyDai_;
+        comptroller = comptroller_;
+        comp = IERC20(comptroller_.getCompAddress());
+        uniswap = uniswap_;
 
         maturity = toUint128(fyDai.maturity());
         c0 = int128((cDai.exchangeRateCurrent() << 64) / 10 ** 27); // Initially RAY, converted to 64.64
@@ -442,5 +456,42 @@ contract CPool is ICPool, Delegable(), ERC20Permit {
         returns(uint128)
     {
         return toUint128(cDai.balanceOf(address(this)));
+    }
+
+    /// @dev Claim comp, sell it for Dai, and mint cDai which remains in the CPool reserves
+    function harvest() public onlyOwner {
+        IERC20 dai = IERC20(cDai.underlying());
+
+        uint256 compAmount = claimComp();
+        if (compAmount > 0) {
+            // IERC20(comp).safeApprove(uni, 0);
+            comp.approve(address(uniswap), compAmount);
+
+            address[] memory path = new address[](3);
+            path[0] = address(comp);
+            path[1] = uniswap.WETH();
+            path[2] = address(dai);
+
+            uniswap.swapExactTokensForTokens(compAmount, uint256(0), path, address(this), block.timestamp + 1800); // Unlikely to overflow
+        }
+        uint256 daiAmount = dai.balanceOf(address(this));
+        if (daiAmount > 0) {
+            dai.approve(address(cDai), daiAmount);
+            cDai.mint(daiAmount);
+        }
+
+        emit Harvested(compAmount, daiAmount);
+    }
+
+    /// @dev Claim all due Comp
+    function claimComp() private returns (uint256) {
+        address[] memory holders = new address[](1);
+        holders[0] = address(this);
+        address[] memory cTokens = new address[](1);
+        cTokens[0] = address(cDai);
+
+        comptroller.claimComp(holders, cTokens, false, true);
+
+        return comp.balanceOf(address(this));
     }
 }
