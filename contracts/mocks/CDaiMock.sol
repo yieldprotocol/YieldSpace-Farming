@@ -40,13 +40,9 @@ contract CDaiMock is ERC20Permit("Compound Dai", "cDai"), ICToken {
     dai.transfer(msg.sender, amount);
   }
 
-  function mintDai(address to, uint256 amount) public {
-    dai.mint(to, amount);
-  }
-
   function mintCDai(address to, uint256 amount) public {
     dai.mint(address(this), amount);
-    _mint(to, amount);
+    _mint(to, amount.muld(exchangeRateStored));
   }
 
   function setExchangeRate(uint256 exchangeRate) public {

@@ -1,6 +1,7 @@
 import { artifacts, contract, web3 } from "hardhat";
 
 const CPool = artifacts.require('CPool')
+const Dai = artifacts.require('DaiMock')
 const CDai = artifacts.require('CDaiMock')
 const FYDai = artifacts.require('FYDaiMock')
 const VariableYieldMath = artifacts.require('VariableYieldMath')
@@ -52,8 +53,10 @@ contract('CPool', async (accounts) => {
   let pool: Contract
   let comptroller: Contract
   let uniswapRouter: Contract
-  let fyDai1: Contract
+  let dai: Contract
   let cDai: Contract
+  let fyDai1: Contract
+
 
   let maturity1: number
 
@@ -70,8 +73,11 @@ contract('CPool', async (accounts) => {
     maturity1 = await currentTimestamp() + 31556952 // One year
     fyDai1 = await FYDai.new(maturity1)
 
+    // Setup dai
+    dai = await Dai.new()
+
     // Setup cDai
-    cDai = await CDai.new()
+    cDai = await CDai.new(dai.address)
     await cDai.setExchangeRate('2000000000000000000000000000') // c0 = 2.0
 
     // Set Comptroller
@@ -79,7 +85,7 @@ contract('CPool', async (accounts) => {
 
     // Set Uniswap Router
     uniswapRouter = await UniswapV2RouterMock.new()
-    await cDai.mintDai(uniswapRouter.address, toWad(10000));
+    await dai.mint(uniswapRouter.address, toWad(10000));
 
     // Setup Pool
     pool = await CPool.new(cDai.address, fyDai1.address, comptroller.address, uniswapRouter.address, 'Name', 'Symbol', { from: owner })
@@ -101,7 +107,7 @@ contract('CPool', async (accounts) => {
 
     assert.equal(
       (await pool.getCDaiReserves()).toString(),
-      cDaiReservesBefore.add(new BN(toWad(1).toString())).toString()
+      cDaiReservesBefore.add(new BN(toWad(3).toString())).toString()
     )
   })
 })
