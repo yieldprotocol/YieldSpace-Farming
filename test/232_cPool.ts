@@ -122,7 +122,7 @@ contract('CPool', async (accounts) => {
     assert.equal(event.event, 'Liquidity')
     assert.equal(event.args.from, user1)
     assert.equal(event.args.to, user1)
-    assert.equal(event.args.cDaiTokens.toString(), initialDai.mul(new BN('-1')).toString())
+    assert.equal(event.args.cDaiTokens.toString(), initialDai.neg().toString())
     assert.equal(event.args.fyDaiTokens.toString(), 0)
     assert.equal(event.args.poolTokens.toString(), initialDai.toString())
 
@@ -176,14 +176,14 @@ contract('CPool', async (accounts) => {
       assert.equal(event.args.from, from)
       assert.equal(event.args.to, to)
       assert.equal(event.args.cDaiTokens, (await cDai.balanceOf(to)).toString())
-      assert.equal(event.args.fyDaiTokens, fyDaiIn.mul(new BN('-1')).toString())
+      assert.equal(event.args.fyDaiTokens, fyDaiIn.neg().toString())
 
       assert.equal(await fyDai1.balanceOf(from), 0, "'From' wallet should have no fyDai tokens")
 
       const cDaiOut = await cDai.balanceOf(to)
 
-      almostEqual(cDaiOut, floor(expectedCDaiOut).toFixed(), fyDaiIn.div(new BN('1000000')))
-      almostEqual(cDaiOutPreview, floor(expectedCDaiOut).toFixed(), fyDaiIn.div(new BN('1000000')))
+      almostEqual(cDaiOut, floor(expectedCDaiOut).toFixed(), fyDaiIn.divn(1000000))
+      almostEqual(cDaiOutPreview, floor(expectedCDaiOut).toFixed(), fyDaiIn.divn(1000000))
     })
 
     it('buys cDai', async () => {
@@ -224,12 +224,12 @@ contract('CPool', async (accounts) => {
       assert.equal(event.args.from, from)
       assert.equal(event.args.to, to)
       assert.equal(event.args.cDaiTokens, cDaiOut.toString())
-      assert.equal(event.args.fyDaiTokens, fyDaiIn.mul(new BN('-1')).toString())
+      assert.equal(event.args.fyDaiTokens, fyDaiIn.neg().toString())
 
       assert.equal(await cDai.balanceOf(to), cDaiOut.toString(), 'Receiver account should have 1 dai token')
 
-      almostEqual(fyDaiIn, floor(expectedFYDaiIn).toFixed(), cDaiOut.div(new BN('1000000')))
-      almostEqual(fyDaiInPreview, floor(expectedFYDaiIn).toFixed(), cDaiOut.div(new BN('1000000')))
+      almostEqual(fyDaiIn, floor(expectedFYDaiIn).toFixed(), cDaiOut.divn(1000000))
+      almostEqual(fyDaiInPreview, floor(expectedFYDaiIn).toFixed(), cDaiOut.divn(1000000))
     })
 
     it('buys dai', async () => {
@@ -273,12 +273,12 @@ contract('CPool', async (accounts) => {
       assert.equal(event.args.from, from)
       assert.equal(event.args.to, to)
       assert.equal(event.args.cDaiTokens, daiOut.muln(3).toString()) // TODO: Refactor to use the exchange rate
-      assert.equal(event.args.fyDaiTokens, fyDaiIn.mul(new BN('-1')).toString())
+      assert.equal(event.args.fyDaiTokens, fyDaiIn.neg().toString())
 
       assert.equal(await dai.balanceOf(to), daiOut.toString(), 'Receiver account should have 1 dai token')
 
-      almostEqual(fyDaiIn, floor(expectedFYDaiIn).toFixed(), cDaiOut.div(new BN('1000000')))
-      almostEqual(fyDaiInPreview, floor(expectedFYDaiIn).toFixed(), cDaiOut.div(new BN('1000000')))
+      almostEqual(fyDaiIn, floor(expectedFYDaiIn).toFixed(), cDaiOut.divn(1000000))
+      almostEqual(fyDaiInPreview, floor(expectedFYDaiIn).toFixed(), cDaiOut.divn(1000000))
     })
 
     describe('with extra fyDai reserves', () => {
@@ -321,7 +321,7 @@ contract('CPool', async (accounts) => {
         assert.equal(event.args.from, user1)
         assert.equal(event.args.to, user2)
         assert.equal(event.args.cDaiTokens, oneToken.mul(-1).toString())
-        assert.equal(event.args.fyDaiTokens, fyDaiIn.mul(new BN('-1')).toString())
+        assert.equal(event.args.fyDaiTokens, fyDaiIn.neg().toString())
         assert.equal(event.args.poolTokens, minted.toString())
 
         almostEqual(minted, floor(expectedMinted).toFixed(), cDaiIn.div(new BN('10000')))
@@ -353,7 +353,7 @@ contract('CPool', async (accounts) => {
         assert.equal(event.event, 'Liquidity')
         assert.equal(event.args.from, user1)
         assert.equal(event.args.to, user2)
-        assert.equal(event.args.poolTokens, lpTokensIn.mul(new BN('-1')).toString())
+        assert.equal(event.args.poolTokens, lpTokensIn.neg().toString())
         assert.equal(event.args.fyDaiTokens, fyDaiOut.toString())
         assert.equal(event.args.cDaiTokens, cDaiOut.toString())
 
@@ -398,13 +398,13 @@ contract('CPool', async (accounts) => {
         assert.equal(event.event, 'Trade')
         assert.equal(event.args.from, from)
         assert.equal(event.args.to, to)
-        assert.equal(event.args.cDaiTokens, cDaiIn.mul(new BN('-1')).toString())
+        assert.equal(event.args.cDaiTokens, cDaiIn.neg().toString())
         assert.equal(event.args.fyDaiTokens, fyDaiOut.toString())
 
         assert.equal(await cDai.balanceOf(from), 0, "'From' wallet should have no cDai tokens")
 
-        almostEqual(fyDaiOut, floor(expectedFYDaiOut).toFixed(), cDaiIn.div(new BN('1000000')))
-        almostEqual(fyDaiOutPreview, floor(expectedFYDaiOut).toFixed(), cDaiIn.div(new BN('1000000')))
+        almostEqual(fyDaiOut, floor(expectedFYDaiOut).toFixed(), cDaiIn.divn(1000000))
+        almostEqual(fyDaiOutPreview, floor(expectedFYDaiOut).toFixed(), cDaiIn.divn(1000000))
       })
 
       it('sells dai', async () => {
@@ -449,13 +449,13 @@ contract('CPool', async (accounts) => {
         assert.equal(event.event, 'Trade')
         assert.equal(event.args.from, from)
         assert.equal(event.args.to, to)
-        assert.equal(event.args.cDaiTokens, cDaiIn.mul(new BN('-1')).toString())
+        assert.equal(event.args.cDaiTokens, cDaiIn.neg().toString())
         assert.equal(event.args.fyDaiTokens, fyDaiOut.toString())
 
         assert.equal(await dai.balanceOf(from), 0, "'From' wallet should have no dai tokens")
 
-        almostEqual(fyDaiOut, floor(expectedFYDaiOut).toFixed(), cDaiIn.div(new BN('1000000')))
-        almostEqual(fyDaiOutPreview, floor(expectedFYDaiOut).toFixed(), cDaiIn.div(new BN('1000000')))
+        almostEqual(fyDaiOut, floor(expectedFYDaiOut).toFixed(), cDaiIn.divn(1000000))
+        almostEqual(fyDaiOutPreview, floor(expectedFYDaiOut).toFixed(), cDaiIn.divn(1000000))
       })
 
       it('buys fyDai', async () => {
@@ -496,13 +496,13 @@ contract('CPool', async (accounts) => {
         assert.equal(event.event, 'Trade')
         assert.equal(event.args.from, from)
         assert.equal(event.args.to, to)
-        assert.equal(event.args.cDaiTokens, cDaiIn.mul(new BN('-1')).toString())
+        assert.equal(event.args.cDaiTokens, cDaiIn.neg().toString())
         assert.equal(event.args.fyDaiTokens, fyDaiOut.toString())
 
         assert.equal(await fyDai1.balanceOf(to), fyDaiOut.toString(), "'To' wallet should have 1 fyDai token")
 
-        almostEqual(cDaiIn, floor(expectedCDaiIn).toFixed(), cDaiIn.div(new BN('1000000')))
-        almostEqual(cDaiInPreview, floor(expectedCDaiIn).toFixed(), cDaiIn.div(new BN('1000000')))
+        almostEqual(cDaiIn, floor(expectedCDaiIn).toFixed(), cDaiIn.divn(1000000))
+        almostEqual(cDaiInPreview, floor(expectedCDaiIn).toFixed(), cDaiIn.divn(1000000))
       })
     })
 
