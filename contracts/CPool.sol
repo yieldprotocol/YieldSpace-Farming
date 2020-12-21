@@ -17,6 +17,7 @@ import "./interfaces/ICPool.sol";
 import "./interfaces/IComptroller.sol";
 import "./interfaces/ICToken.sol";
 import "./interfaces/IUniswapV2Router.sol";
+import "hardhat/console.sol";
 
 
 /// @dev The CPool contract exchanges cDai for fyDai at a price defined by a specific formula.
@@ -299,7 +300,7 @@ contract CPool is ICPool, Delegable, Ownable, ERC20Permit {
         returns(uint128)
     {
         uint256 exchangeRate = cDai.exchangeRateCurrent();
-        uint128 cDaiOut = uint256(daiOut).divd(exchangeRate).toUint128();
+        uint128 cDaiOut = uint256(daiOut).muld(exchangeRate).toUint128();
         uint128 fyDaiIn = buyCDaiAtRate(cDaiOut, exchangeRate);
 
         fyDai.transferFrom(from, address(this), fyDaiIn);

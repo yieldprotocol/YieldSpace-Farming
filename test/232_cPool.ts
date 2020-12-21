@@ -232,6 +232,55 @@ contract('CPool', async (accounts) => {
       almostEqual(fyDaiInPreview, floor(expectedFYDaiIn).toFixed(), cDaiOut.div(new BN('1000000')))
     })
 
+    it.only('buys dai', async () => {
+      const cDaiReserves = await pool.getCDaiReserves()
+      const fyDaiReserves = await pool.getFYDaiReserves()
+      const cDaiOut = new BN(toWad(1).toString())
+      // const daiOut = cDaiOut.mul(RAY).div(await cDai.exchangeRateCurrent())
+      const daiOut = cDaiOut.divn(3)
+
+      const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
+      const timeTillMaturity = new BN(maturity1).sub(now)
+
+      await fyDai1.mint(from, fyDaiTokens, { from: owner })
+
+      assert.equal(
+        await fyDai1.balanceOf(from),
+        fyDaiTokens.toString(),
+        "'From' wallet should have " + fyDaiTokens + ' fyDai, instead has ' + (await fyDai1.balanceOf(from))
+      )
+
+      // Test preview since we are here
+      const fyDaiInPreview = await pool.buyCDaiAtRate(cDaiOut, await cDai.exchangeRateCurrent.call(), { from: operator })
+
+      const expectedFYDaiIn = buyVYDaiNormalized(
+        cDaiReserves.toString(),
+        fyDaiReserves.toString(),
+        cDaiOut.toString(),
+        timeTillMaturity.toString(),
+        '2.0',
+        '3.0'
+      )
+
+      await pool.addDelegate(operator, { from: from })
+      await fyDai1.approve(pool.address, fyDaiTokens, { from: from })
+      const tx = await pool.buyDai(from, to, daiOut, { from: operator })
+      const event = tx.logs[tx.logs.length - 1]
+
+      const fyDaiIn = fyDaiTokens.sub(await fyDai1.balanceOf(from))
+
+      assert.equal(event.event, 'Trade')
+      assert.equal(event.args.from, from)
+      assert.equal(event.args.to, to)
+      assert.equal(event.args.cDaiTokens, daiOut.muln(3).toString()) // TODO: Refactor to use the exchange rate
+      assert.equal(event.args.fyDaiTokens, fyDaiIn.mul(new BN('-1')).toString())
+
+      assert.equal(await dai.balanceOf(to), daiOut.toString(), 'Receiver account should have 1 dai token')
+
+      almostEqual(fyDaiIn, floor(expectedFYDaiIn).toFixed(), cDaiOut.div(new BN('1000000')))
+      almostEqual(fyDaiInPreview, floor(expectedFYDaiIn).toFixed(), cDaiOut.div(new BN('1000000')))
+    })
+
     describe('with extra fyDai reserves', () => {
       beforeEach(async () => {
         const additionalFYDaiReserves = toWad(34.4)
@@ -361,7 +410,7 @@ contract('CPool', async (accounts) => {
         const cDaiReserves = await pool.getCDaiReserves()
         const fyDaiReserves = await pool.getFYDaiReserves()
         const cDaiIn = new BN(toWad(1).toString())
-        // const daiIn = cDai.mul(RAY).div(await cDai.exchangeRateCurrent())
+        // const daiIn = cDaiIn.mul(RAY).div(await cDai.exchangeRateCurrent())
         const daiIn = cDaiIn.muln(3)
 
         const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
