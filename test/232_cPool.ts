@@ -1,6 +1,7 @@
 import { artifacts, contract, web3 } from "hardhat";
 
 const CPool = artifacts.require('CPool')
+const Dai = artifacts.require('DaiMock')
 const CDai = artifacts.require('CDaiMock')
 const FYDai = artifacts.require('FYDaiMock')
 const VariableYieldMath = artifacts.require('VariableYieldMath')
@@ -60,9 +61,9 @@ contract('CPool', async (accounts) => {
   let pool: Contract
   let comptroller: Contract
   let uniswapRouter: Contract
-  let fyDai1: Contract
+  let dai: Contract
   let cDai: Contract
-
+  let fyDai1: Contract
   let maturity1: number
 
   before(async () => {
@@ -78,8 +79,11 @@ contract('CPool', async (accounts) => {
     maturity1 = await currentTimestamp() + 31556952 // One year
     fyDai1 = await FYDai.new(maturity1)
 
+    // Setup dai
+    dai = await Dai.new()
+
     // Setup cDai
-    cDai = await CDai.new()
+    cDai = await CDai.new(dai.address)
     await cDai.setExchangeRate('2000000000000000000000000000') // c0 = 2.0
 
 
@@ -348,6 +352,57 @@ contract('CPool', async (accounts) => {
         assert.equal(event.args.fyDaiTokens, fyDaiOut.toString())
 
         assert.equal(await cDai.balanceOf(from), 0, "'From' wallet should have no cDai tokens")
+
+        almostEqual(fyDaiOut, floor(expectedFYDaiOut).toFixed(), cDaiIn.div(new BN('1000000')))
+        almostEqual(fyDaiOutPreview, floor(expectedFYDaiOut).toFixed(), cDaiIn.div(new BN('1000000')))
+      })
+
+      it.only('sells dai', async () => {
+        const cDaiReserves = await pool.getCDaiReserves()
+        const fyDaiReserves = await pool.getFYDaiReserves()
+        const cDaiIn = new BN(toWad(1).toString())
+        // const daiIn = cDai.mul(RAY).div(await cDai.exchangeRateCurrent())
+        const daiIn = cDaiIn.muln(3)
+
+        const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
+        const timeTillMaturity = new BN(maturity1).sub(now)
+
+        assert.equal(
+          await fyDai1.balanceOf(to),
+          0,
+          "'To' wallet should have no fyDai, instead has " + (await fyDai1.balanceOf(operator))
+        )
+
+        // Test preview since we are here
+        const fyDaiOutPreview = await pool.sellCDaiPreview(cDaiIn, { from: operator })
+
+        const expectedFYDaiOut = sellVYDaiNormalized(
+          cDaiReserves.toString(),
+          fyDaiReserves.toString(),
+          cDaiIn.toString(),
+          timeTillMaturity.toString(),
+          '2.0',
+          '3.0'
+        )
+
+        await pool.addDelegate(operator, { from: from })
+        // await cDai.mintCDai(from, cDaiIn)
+        // await cDai.approve(pool.address, cDaiIn, { from: from })
+        await dai.mint(from, daiIn)
+        await dai.approve(pool.address, daiIn, { from: from })
+
+        const tx = await pool.sellDai(from, to, daiIn, { from: operator })
+        const event = tx.logs[tx.logs.length - 1]
+
+        const fyDaiOut = await fyDai1.balanceOf(to)
+
+        assert.equal(event.event, 'Trade')
+        assert.equal(event.args.from, from)
+        assert.equal(event.args.to, to)
+        assert.equal(event.args.cDaiTokens, cDaiIn.mul(new BN('-1')).toString())
+        assert.equal(event.args.fyDaiTokens, fyDaiOut.toString())
+
+        assert.equal(await dai.balanceOf(from), 0, "'From' wallet should have no dai tokens")
 
         almostEqual(fyDaiOut, floor(expectedFYDaiOut).toFixed(), cDaiIn.div(new BN('1000000')))
         almostEqual(fyDaiOutPreview, floor(expectedFYDaiOut).toFixed(), cDaiIn.div(new BN('1000000')))

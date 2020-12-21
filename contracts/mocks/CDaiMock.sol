@@ -3,19 +3,14 @@ pragma solidity ^0.7.0;
 
 import "../helpers/ERC20Permit.sol";
 import "../interfaces/ICToken.sol";
-
-contract DaiMock is ERC20Permit("Dai", "DAI") {
-  function mint(address to, uint256 amount) public {
-    _mint(to, amount);
-  }
-}
+import "./DaiMock.sol";
 
 contract CDaiMock is ERC20Permit("Compound Dai", "cDai"), ICToken {
-  DaiMock private dai;
+  DaiMock public dai;
   uint256 public override exchangeRateStored;
 
-  constructor() public {
-    dai = new DaiMock();
+  constructor(DaiMock dai_) {
+    dai = dai_;
     exchangeRateStored = 1e18;
   }
 

@@ -17,6 +17,7 @@ import "./interfaces/IComptroller.sol";
 import "./interfaces/ICToken.sol";
 import "./interfaces/IUniswapV2Router.sol";
 
+// TODO: Make DecimalMath a library
 
 /// @dev The CPool contract exchanges cDai for fyDai at a price defined by a specific formula.
 contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
@@ -54,6 +55,8 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
 
         maturity = toUint128(fyDai.maturity());
         c0 = int128((cDai.exchangeRateCurrent() << 64) / 10 ** 27); // Initially RAY, converted to 64.64
+
+        dai.approve(address(cDai_), uint256(-1)); // Approve sending Dai to cDai for minting
     }
 
     /// @dev Trading can only be done before maturity
@@ -65,6 +68,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         _;
     }
 
+    // TODO: Add this to a YieldSafeMath library
     /// @dev Overflow-protected addition, from OpenZeppelin
     function add(uint128 a, uint128 b)
         internal pure returns (uint128)
@@ -75,6 +79,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         return c;
     }
 
+    // TODO: Add this to a YieldSafeMath library
     /// @dev Overflow-protected substraction, from OpenZeppelin
     function sub(uint128 a, uint128 b) internal pure returns (uint128) {
         require(b <= a, "CPool: fyDai reserves too low");
@@ -83,6 +88,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         return c;
     }
 
+    // TODO: Move this to a SafeCast library
     /// @dev Safe casting from uint256 to uint128
     function toUint128(uint256 x) internal pure returns(uint128) {
         require(
@@ -92,6 +98,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         return uint128(x);
     }
 
+    // TODO: Move this to a SafeCast library
     /// @dev Safe casting from uint256 to int256
     function toInt256(uint256 x) internal pure returns(int256) {
         require(
@@ -244,7 +251,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         onlyHolderOrDelegate(from, "CPool: Only Holder Or Delegate")
         returns(uint128)
     {
-        uint128 fyDaiOut = sellCDaiPreview(cDaiIn);
+        uint128 fyDaiOut = sellCDaiPreview(cDaiIn); // TODO: Should use sellCDaiCurrent
 
         cDai.transferFrom(from, address(this), cDaiIn);
         fyDai.transfer(to, fyDaiOut);
@@ -269,7 +276,8 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         uint128 cDaiIn = toUint128(divd(uint256(daiIn), exchangeRate));
         uint128 fyDaiOut = sellCDaiAtRate(cDaiIn, int128((exchangeRate << 64) / 10 ** 27));
 
-        cDai.transferFrom(from, address(this), cDaiIn);
+        dai.transferFrom(from, address(this), daiIn);
+        cDai.mint(daiIn); // TODO: Optional when getCDaiReserves is refactored to add dai and cDai balances in cDai terms
         fyDai.transfer(to, fyDaiOut);
         emit Trade(maturity, from, to, -toInt256(cDaiIn), toInt256(fyDaiOut));
 
@@ -328,7 +336,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         onlyHolderOrDelegate(from, "CPool: Only Holder Or Delegate")
         returns(uint128)
     {
-        uint128 fyDaiIn = buyCDaiPreview(cDaiOut);
+        uint128 fyDaiIn = buyCDaiPreview(cDaiOut); // TODO: Should use buyCDaiCurrent
 
         fyDai.transferFrom(from, address(this), fyDaiIn);
         cDai.transfer(to, cDaiOut);
@@ -389,7 +397,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         onlyHolderOrDelegate(from, "CPool: Only Holder Or Delegate")
         returns(uint128)
     {
-        uint128 cDaiOut = sellFYDaiPreview(fyDaiIn);
+        uint128 cDaiOut = sellFYDaiPreview(fyDaiIn); // TODO: Should use sellFYDaiCurrent
 
         fyDai.transferFrom(from, address(this), fyDaiIn);
         cDai.transfer(to, cDaiOut);
@@ -460,7 +468,7 @@ contract CPool is ICPool, DecimalMath, Delegable, Ownable, ERC20Permit {
         onlyHolderOrDelegate(from, "CPool: Only Holder Or Delegate")
         returns(uint128)
     {
-        uint128 cDaiIn = buyFYDaiPreview(fyDaiOut);
+        uint128 cDaiIn = buyFYDaiPreview(fyDaiOut); // TODO: Should use buyFYDaiCurrent
 
         cDai.transferFrom(from, address(this), cDaiIn);
         fyDai.transfer(to, fyDaiOut);
