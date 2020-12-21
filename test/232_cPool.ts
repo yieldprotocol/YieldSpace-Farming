@@ -236,8 +236,7 @@ contract('CPool', async (accounts) => {
       const cDaiReserves = await pool.getCDaiReserves()
       const fyDaiReserves = await pool.getFYDaiReserves()
       const cDaiOut = toWad(1)
-      const daiOut = new BN(divRay(cDaiOut.toString(), (await cDai.exchangeRateCurrent.call()).toString()).toString())
-      // const daiOut = cDaiOut.divn(3)
+      const daiOut = divRay(cDaiOut.toString(), (await cDai.exchangeRateCurrent.call()).toString())
 
       const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
       const timeTillMaturity = new BN(maturity1).sub(now)
@@ -272,7 +271,7 @@ contract('CPool', async (accounts) => {
       assert.equal(event.event, 'Trade')
       assert.equal(event.args.from, from)
       assert.equal(event.args.to, to)
-      assert.equal(event.args.cDaiTokens, daiOut.muln(3).toString()) // TODO: Refactor to use the exchange rate
+      assert.equal(event.args.cDaiTokens, mulRay(daiOut.toString(), (await cDai.exchangeRateCurrent.call()).toString()).toString())
       assert.equal(event.args.fyDaiTokens, fyDaiIn.neg().toString())
 
       assert.equal(await dai.balanceOf(to), daiOut.toString(), 'Receiver account should have 1 dai token')
@@ -364,7 +363,7 @@ contract('CPool', async (accounts) => {
       it('sells cDai', async () => {
         const cDaiReserves = await pool.getCDaiReserves()
         const fyDaiReserves = await pool.getFYDaiReserves()
-        const cDaiIn = toWad(3).muln(3) // TODO: Use the exchange rate
+        const cDaiIn = mulRay(toWad(3).toString(), (await cDai.exchangeRateCurrent.call()).toString())
         const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
         const timeTillMaturity = new BN(maturity1).sub(now)
 
@@ -387,7 +386,7 @@ contract('CPool', async (accounts) => {
         )
 
         await pool.addDelegate(operator, { from: from })
-        await cDai.mintCDai(from, cDaiIn.divn(3)) // TODO: Use the exchange rate
+        await cDai.mintCDai(from, divRay(cDaiIn.toString(), (await cDai.exchangeRateCurrent.call()).toString()))
         
         await cDai.approve(pool.address, cDaiIn, { from: from })
         const tx = await pool.sellCDai(from, to, cDaiIn, { from: operator })
@@ -411,8 +410,7 @@ contract('CPool', async (accounts) => {
         const cDaiReserves = await pool.getCDaiReserves()
         const fyDaiReserves = await pool.getFYDaiReserves()
         const cDaiIn = toWad(1)
-        // const daiIn = cDaiIn.mul(RAY).div(await cDai.exchangeRateCurrent())
-        const daiIn = cDaiIn.muln(3)
+        const daiIn = mulRay(cDaiIn.toString(), (await cDai.exchangeRateCurrent.call()).toString())
 
         const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
         const timeTillMaturity = new BN(maturity1).sub(now)
@@ -461,7 +459,7 @@ contract('CPool', async (accounts) => {
       it('buys fyDai', async () => {
         const cDaiReserves = await pool.getCDaiReserves()
         const fyDaiReserves = await pool.getFYDaiReserves()
-        const fyDaiOut = toWad(1).muln(3) // TODO: Use exchange rate
+        const fyDaiOut = mulRay(toWad(1).toString(), (await cDai.exchangeRateCurrent.call()).toString())
         const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
         const timeTillMaturity = new BN(maturity1).sub(now)
 
@@ -484,7 +482,7 @@ contract('CPool', async (accounts) => {
         )
 
         await pool.addDelegate(operator, { from: from })
-        await cDai.mintCDai(from, cDaiTokens.divn(3)) // TODO: Use exchange rate
+        await cDai.mintCDai(from, divRay(cDaiTokens.toString(), (await cDai.exchangeRateCurrent.call()).toString()))
         const cDaiBalanceBefore = await cDai.balanceOf(from)
 
         await cDai.approve(pool.address, cDaiTokens, { from: from })
