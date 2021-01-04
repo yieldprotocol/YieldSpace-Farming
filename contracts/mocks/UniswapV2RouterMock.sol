@@ -15,8 +15,11 @@ contract UniswapV2RouterMock is IUniswapV2Router {
       address[] calldata path,
       address to,
       uint /*deadline*/
-  ) external override returns (uint[] memory /*amounts*/) {
+  ) external override returns (uint[] memory amounts) {
+    amounts = new uint[](path.length + 1);
+    amounts[0] = amountIn;
     SafeERC20.safeTransferFrom(IERC20(path[0]), msg.sender, address(this), amountIn);
     SafeERC20.safeTransfer(IERC20(path[path.length - 1]), to, amountIn);
+    amounts[path.length] = amountIn;
   }
 }
