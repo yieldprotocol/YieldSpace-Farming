@@ -1,4 +1,4 @@
-import { artifacts, contract, web3 } from "hardhat";
+import { artifacts, contract, web3 } from 'hardhat'
 
 const Pool = artifacts.require('Pool')
 const Dai = artifacts.require('DaiMock')
@@ -57,7 +57,6 @@ contract('Pool', async (accounts) => {
   let cDai: Contract
   let fyDai1: Contract
 
-
   let maturity1: number
 
   before(async () => {
@@ -70,7 +69,7 @@ contract('Pool', async (accounts) => {
     snapshotId = snapshot['result']
 
     // Setup fyDai
-    maturity1 = await currentTimestamp() + 31556952 // One year
+    maturity1 = (await currentTimestamp()) + 31556952 // One year
     fyDai1 = await FYDai.new(maturity1)
 
     // Setup dai
@@ -84,10 +83,12 @@ contract('Pool', async (accounts) => {
 
     // Set Uniswap Router
     uniswapRouter = await UniswapV2RouterMock.new()
-    await dai.mint(uniswapRouter.address, toWad(10000));
+    await dai.mint(uniswapRouter.address, toWad(10000))
 
     // Setup Pool
-    pool = await Pool.new(cDai.address, fyDai1.address, comptroller.address, uniswapRouter.address, 'Name', 'Symbol', { from: owner })
+    pool = await Pool.new(cDai.address, fyDai1.address, comptroller.address, uniswapRouter.address, 'Name', 'Symbol', {
+      from: owner,
+    })
 
     await dai.mint(user1, initialDai)
     await dai.approve(pool.address, initialDai, { from: user1 })
@@ -98,13 +99,12 @@ contract('Pool', async (accounts) => {
     await helper.revertToSnapshot(snapshotId)
   })
 
-  it('harvests comp and converts it to cDai', async () => {
+  it('harvests comp into dai', async () => {
     const daiReservesBefore = await pool.getDaiReserves()
     await pool.harvest()
 
-    assert.equal(
-      (await pool.getDaiReserves()).toString(),
-      daiReservesBefore.add(toWad(1)).toString()
-    )
+    assert.equal((await dai.balanceOf(pool.address)).toString(), daiReservesBefore.add(toWad(1)).toString())
+    assert.equal((await pool.getDaiReserves()).toString(), daiReservesBefore.toString())
+    assert.equal((await pool.harvested()).toString(), toWad(1).toString())
   })
 })

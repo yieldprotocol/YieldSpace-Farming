@@ -1,4 +1,4 @@
-import { artifacts, contract, web3 } from "hardhat";
+import { artifacts, contract, web3 } from 'hardhat'
 
 const Pool = artifacts.require('Pool')
 const Dai = artifacts.require('DaiMock')
@@ -11,14 +11,7 @@ const UniswapV2RouterMock = artifacts.require('UniswapV2RouterMock')
 const { floor } = require('mathjs')
 import * as helper from 'ganache-time-traveler'
 import { toWad, toRay, mulRay, divRay } from './shared/utils'
-import {
-  mint,
-  burn,
-  sellVYDai,
-  sellFYDai,
-  buyVYDai,
-  buyFYDai,
-} from './shared/yieldspace'
+import { mint, burn, sellVYDai, sellFYDai, buyVYDai, buyFYDai } from './shared/yieldspace'
 // @ts-ignore
 import { BN, expectRevert } from '@openzeppelin/test-helpers'
 import { assert, expect } from 'chai'
@@ -76,7 +69,7 @@ contract('Pool', async (accounts) => {
     snapshotId = snapshot['result']
 
     // Setup fyDai
-    maturity1 = await currentTimestamp() + 31556952 // One year
+    maturity1 = (await currentTimestamp()) + 31556952 // One year
     fyDai1 = await FYDai.new(maturity1)
 
     // Setup dai
@@ -92,7 +85,9 @@ contract('Pool', async (accounts) => {
     uniswapRouter = await UniswapV2RouterMock.new()
 
     // Setup Pool
-    pool = await Pool.new(cDai.address, fyDai1.address, comptroller.address, uniswapRouter.address, 'Name', 'Symbol', { from: owner })
+    pool = await Pool.new(cDai.address, fyDai1.address, comptroller.address, uniswapRouter.address, 'Name', 'Symbol', {
+      from: owner,
+    })
 
     await cDai.setExchangeRate(toRay(3)) // exchangeRate = 3.0
   })
@@ -205,7 +200,7 @@ contract('Pool', async (accounts) => {
         fyDaiReserves.toString(),
         daiOut.toString(),
         timeTillMaturity.toString(),
-        '1.0',
+        '1.0'
       )
 
       await pool.addDelegate(operator, { from: from })
@@ -337,7 +332,7 @@ contract('Pool', async (accounts) => {
         await dai.approve(pool.address, daiIn, { from: from })
 
         const tx = await pool.sellDai(from, to, daiIn, { from: operator })
-        const event = tx.logs[tx.logs.length - 1]
+        const event = tx.logs[tx.logs.length - 4]
 
         const fyDaiOut = await fyDai1.balanceOf(to)
 
@@ -383,7 +378,7 @@ contract('Pool', async (accounts) => {
 
         await dai.approve(pool.address, daiTokens, { from: from })
         const tx = await pool.buyFYDai(from, to, fyDaiOut, { from: operator })
-        const event = tx.logs[tx.logs.length - 1]
+        const event = tx.logs[tx.logs.length - 4]
 
         const daiIn = daiBalanceBefore.sub(await dai.balanceOf(from))
 

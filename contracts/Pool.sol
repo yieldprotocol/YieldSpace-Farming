@@ -35,6 +35,11 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
     int128 constant public g2 = int128(uint256((1000 << 64)) / 950); // To be used when selling fyDai to the pool. All constants are `ufixed`, to divide them they must be converted to uint256
     uint128 immutable public maturity;
 
+    uint256 constant public MIN_BUFFER = 10e21;
+    uint256 constant public MID_BUFFER = 30e21;
+    uint256 constant public MAX_BUFFER = 50e21;
+    uint256 constant public BUFFER_TRIGGER = 10e21;
+
     IDai public override dai;
     IFYDai public override fyDai;
 
@@ -43,7 +48,9 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
     IUniswapV2Router public immutable uniswap;
     IComptroller public immutable comptroller;
 
-    uint256 harvested;
+    uint256 public harvested;
+    uint256 public investedRate;
+    uint256 public daiInvested;
 
     constructor(ICToken cDai_, IFYDai fyDai_, IComptroller comptroller_, IUniswapV2Router uniswap_, string memory name_, string memory symbol_)
         ERC20Permit(name_, symbol_)
@@ -216,6 +223,8 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         fyDai.transfer(to, fyDaiOut);
         emit Trade(maturity, from, to, -int256(daiIn), fyDaiOut);
 
+        if (dai.balanceOf(address(this)) > MAX_BUFFER || daiIn > BUFFER_TRIGGER) invest();
+
         return fyDaiOut;
     }
 
@@ -257,6 +266,8 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
             k,
             g2
         );
+
+        if (dai.balanceOf(address(this)) - daiOut < MIN_BUFFER || daiOut > BUFFER_TRIGGER) divest(daiOut);
 
         fyDai.transferFrom(from, address(this), fyDaiIn);
         dai.transfer(to, daiOut);
@@ -303,6 +314,8 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
             k,
             g2
         );
+
+        if (dai.balanceOf(address(this)) - daiOut < MIN_BUFFER || daiOut > BUFFER_TRIGGER) divest(daiOut);
 
         fyDai.transferFrom(from, address(this), fyDaiIn);
         dai.transfer(to, daiOut);
@@ -354,6 +367,8 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         fyDai.transfer(to, fyDaiOut);
         emit Trade(maturity, from, to, -int256(daiIn), fyDaiOut);
 
+        if (dai.balanceOf(address(this)) > MAX_BUFFER || daiIn > BUFFER_TRIGGER) invest();
+
         return daiIn;
     }
 
@@ -370,7 +385,40 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         public view override
         returns(uint128)
     {
-        return dai.balanceOf(address(this)).toUint128();
+        return dai.balanceOf(address(this)).sub(harvested).toUint128();
+    }
+
+    function invest() internal {
+        require (dai.balanceOf(address(this)) > MID_BUFFER, "Pool: Not enough Dai to invest");
+        uint256 daiAmount = dai.balanceOf(address(this)) - MID_BUFFER;
+        uint256 daiBalance = dai.balanceOf(address(this));
+        uint256 daiToInvest = daiAmount < daiBalance ? daiAmount : daiBalance;
+
+        daiInvested = daiInvested.add(daiToInvest);
+        investedRate = investedRate.add(
+            (cDai.exchangeRateCurrent().sub(investedRate)).mul(
+                daiToInvest.div(daiInvested)
+            )
+        );
+        
+        cDai.mint(daiToInvest);
+    }
+
+    function divest(uint256 daiAmount) internal {
+        // dai.balanceOf(address(this)).sub(daiAmount) < MID_BUFFER
+        require (dai.balanceOf(address(this)) < MID_BUFFER.add(daiAmount), "Pool: Too much Dai to divest");
+        uint256 exchangeRate = cDai.exchangeRateCurrent();
+        uint256 cDaiAmount = daiAmount.mul(exchangeRate);
+        uint256 cDaiBalance = cDai.balanceOf(address(this));
+        uint256 cDaiToDivest = cDaiAmount < cDaiBalance ? cDaiAmount : cDaiBalance;
+        
+        // The dai obtained is subtracted from the invested dai accounting up to the investedRate, the rest is profit
+        uint256 daiToDivest = cDaiToDivest.div(investedRate);
+        uint256 daiProfit = cDaiToDivest.div(exchangeRate.sub(investedRate));
+        daiInvested = daiInvested.sub(daiToDivest);
+        harvested = harvested.add(daiProfit);
+        
+        cDai.burn(cDaiToDivest);
     }
 
     /// @dev Claim comp, sell it for Dai, and mint dai which remains in the Pool reserves
