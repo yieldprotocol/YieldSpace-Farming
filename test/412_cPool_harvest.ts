@@ -1,4 +1,4 @@
-import { artifacts, contract, web3 } from "hardhat";
+import { artifacts, contract, web3 } from 'hardhat'
 
 const CPool = artifacts.require('CPool')
 const Dai = artifacts.require('DaiMock')
@@ -57,7 +57,6 @@ contract('CPool', async (accounts) => {
   let cDai: Contract
   let fyDai1: Contract
 
-
   let maturity1: number
 
   before(async () => {
@@ -70,7 +69,7 @@ contract('CPool', async (accounts) => {
     snapshotId = snapshot['result']
 
     // Setup fyDai
-    maturity1 = await currentTimestamp() + 31556952 // One year
+    maturity1 = (await currentTimestamp()) + 31556952 // One year
     fyDai1 = await FYDai.new(maturity1)
 
     // Setup dai
@@ -85,10 +84,12 @@ contract('CPool', async (accounts) => {
 
     // Set Uniswap Router
     uniswapRouter = await UniswapV2RouterMock.new()
-    await dai.mint(uniswapRouter.address, toWad(10000));
+    await dai.mint(uniswapRouter.address, toWad(10000))
 
     // Setup Pool
-    pool = await CPool.new(cDai.address, fyDai1.address, comptroller.address, uniswapRouter.address, 'Name', 'Symbol', { from: owner })
+    pool = await CPool.new(cDai.address, fyDai1.address, comptroller.address, uniswapRouter.address, 'Name', 'Symbol', {
+      from: owner,
+    })
 
     await cDai.setExchangeRate('3000000000000000000000000000') // exchangeRate = 3.0
 
@@ -105,9 +106,6 @@ contract('CPool', async (accounts) => {
     const cDaiReservesBefore = await pool.getCDaiReserves()
     await pool.harvest()
 
-    assert.equal(
-      (await pool.getCDaiReserves()).toString(),
-      cDaiReservesBefore.add(toWad(3)).toString()
-    )
+    assert.equal((await pool.getCDaiReserves()).toString(), cDaiReservesBefore.add(toWad(3)).toString())
   })
 })

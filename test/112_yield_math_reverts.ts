@@ -1,4 +1,4 @@
-import { artifacts, contract } from "hardhat";
+import { artifacts, contract } from 'hardhat'
 
 const YieldMathWrapper = artifacts.require('YieldMathWrapper')
 const YieldMath = artifacts.require('YieldMath')

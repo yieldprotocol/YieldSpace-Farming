@@ -17,7 +17,11 @@ export const MAX = bnify('0xffffffffffffffffffffffffffffffffffffffffffffffffffff
 /// @dev Converts a BigNumberish to WAD precision, for BigNumberish up to 10 decimal places
 export function toWad(value: BigNumberish): BN {
   let exponent = BigNumber.from(10).pow(BigNumber.from(8))
-  return new BN(BigNumber.from((value as any) * 10 ** 10).mul(exponent).toString())
+  return new BN(
+    BigNumber.from((value as any) * 10 ** 10)
+      .mul(exponent)
+      .toString()
+  )
 }
 
 /// @dev Converts a BigNumberish to RAY precision, for BigNumberish up to 10 decimal places
@@ -64,6 +68,5 @@ export function divrupRay(x: BigNumberish, ray: BigNumberish): BN {
   if (z.mul(ray).div(UNIT) < x) return z.add('1')
   return new BN(z.toString())
 }
-
 
 const UNIT: BigNumber = BigNumber.from(10).pow(BigNumber.from(27))
