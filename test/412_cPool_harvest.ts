@@ -106,6 +106,6 @@ contract('CPool', async (accounts) => {
     const cDaiReservesBefore = await pool.getCDaiReserves()
     await pool.harvest()
 
-    assert.equal((await pool.getCDaiReserves()).toString(), cDaiReservesBefore.add(toWad(3)).toString())
+    assert.equal((await pool.getCDaiReserves()).toString(), cDaiReservesBefore.add(toWad(1).divn(3)).toString())
   })
 })

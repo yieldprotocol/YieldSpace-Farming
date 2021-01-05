@@ -129,7 +129,7 @@ contract('Pool - Harvest', async (accounts) => {
 
       assert.equal(
         (await cDai.balanceOf(pool.address)).toString(),
-        mulRay(BUFFER_TRIGGER.muln(1.5).toString(), exchangeRate.toString()).toString()
+        divRay(BUFFER_TRIGGER.muln(1.5).toString(), exchangeRate.toString()).toString()
       )
       assert.equal(
         (await dai.balanceOf(pool.address)).toString(),
@@ -143,7 +143,7 @@ contract('Pool - Harvest', async (accounts) => {
 
       assert.equal(
         (await cDai.balanceOf(pool.address)).toString(),
-        mulRay(MAX_BUFFER.add(oneToken.muln(1000)).sub(MID_BUFFER).toString(), exchangeRate.toString()).toString()
+        divRay(MAX_BUFFER.add(oneToken.muln(1000)).sub(MID_BUFFER).toString(), exchangeRate.toString()).toString()
       )
       assert.equal(
         (await dai.balanceOf(pool.address)).toString(),
@@ -197,7 +197,7 @@ contract('Pool - Harvest', async (accounts) => {
 
       assert.equal(
         (await cDai.balanceOf(pool.address)).toString(),
-        mulRay(MAX_BUFFER.toString(), exchangeRate.toString()).toString())
+        divRay(MAX_BUFFER.toString(), exchangeRate.toString()).toString())
       assert.equal(
         (await dai.balanceOf(pool.address)).toString(),
         MID_BUFFER.toString()
@@ -210,7 +210,7 @@ contract('Pool - Harvest', async (accounts) => {
 
       assert.equal(
         (await cDai.balanceOf(pool.address)).toString(),
-        mulRay(MAX_BUFFER.toString(), exchangeRate.toString()).toString()
+        divRay(MAX_BUFFER.toString(), exchangeRate.toString()).toString()
       )
       assert.equal(
         (await dai.balanceOf(pool.address)).toString(),
@@ -223,7 +223,7 @@ contract('Pool - Harvest', async (accounts) => {
 
       assert.equal(
         (await cDai.balanceOf(pool.address)).toString(),
-        mulRay(MAX_BUFFER.sub(BUFFER_TRIGGER.muln(1.5)).toString(), exchangeRate.toString()).toString()
+        divRay(MAX_BUFFER.sub(BUFFER_TRIGGER.muln(1.5)).toString(), exchangeRate.toString()).toString()
       )
       assert.equal(
         (await dai.balanceOf(pool.address)).toString(),
@@ -239,7 +239,7 @@ contract('Pool - Harvest', async (accounts) => {
 
       assert.equal(
         (await cDai.balanceOf(pool.address)).toString(),
-        mulRay(MAX_BUFFER.sub(BUFFER_TRIGGER.muln(3)).toString(), exchangeRate.toString()).toString()
+        divRay(MAX_BUFFER.sub(BUFFER_TRIGGER.muln(3)).toString(), exchangeRate.toString()).toString()
       )
       assert.equal(
         (await dai.balanceOf(pool.address)).toString(),
