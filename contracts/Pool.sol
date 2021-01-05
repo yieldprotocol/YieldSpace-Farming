@@ -48,9 +48,9 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
     IUniswapV2Router public immutable uniswap;
     IComptroller public immutable comptroller;
 
-    uint256 public invested;     // Dai amount that has been invested into cDai, minus amount divested at investedRate
-    uint256 public harvested;    // Dai profit obtained from investing and then divesting, as the differential between investedRate and exchangeRateCurrent at the time of divesting
-    uint256 public investedRate; // Prorrated exchangeRate across all investment events
+    uint256 public invested;            // Dai amount that has been invested into cDai, minus amount divested at investedRate
+    uint256 public harvested;           // Dai profit obtained from investing and then divesting, as the differential between investedRate and exchangeRateCurrent at the time of divesting
+    uint256 public investedRate = 1e27; // Prorrated exchangeRate across all investment events
 
     constructor(ICToken cDai_, IFYDai fyDai_, IComptroller comptroller_, IUniswapV2Router uniswap_, string memory name_, string memory symbol_)
         ERC20Permit(name_, symbol_)
@@ -132,9 +132,8 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         uint256 supply = totalSupply();
         if (supply == 0) return init(daiIn);
 
-        uint256 daiReserves = dai.balanceOf(address(this));
-        // use the actual reserves rather than the virtual reserves
-        uint256 fyDaiReserves = fyDai.balanceOf(address(this));
+        uint256 daiReserves = getLiquidityDaiReserves(); // dai in the buffer plus invested dai
+        uint256 fyDaiReserves = fyDai.balanceOf(address(this)); // use the actual reserves rather than the virtual reserves
         uint256 lpOut = supply.mul(daiIn).div(daiReserves);
         uint256 fyDaiIn = fyDaiReserves.mul(lpOut).div(supply);
 
@@ -165,15 +164,8 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         returns (uint256, uint256)
     {
         uint256 supply = totalSupply();
-        uint256 daiReserves = dai.balanceOf(address(this));
-        // use the actual reserves rather than the virtual reserves
-        uint256 daiOut;
-        uint256 fyDaiOut;
-        { // avoiding stack too deep
-            uint256 fyDaiReserves = fyDai.balanceOf(address(this));
-            daiOut = lpIn.mul(daiReserves).div(supply);
-            fyDaiOut = lpIn.mul(fyDaiReserves).div(supply);
-        }
+        uint256 daiOut = lpIn.mul(getLiquidityDaiReserves()).div(supply); // dai in the buffer plus invested dai
+        uint256 fyDaiOut = lpIn.mul(fyDai.balanceOf(address(this))).div(supply); // use the actual reserves rather than the virtual reserves
 
         if (dai.balanceOf(address(this)) - daiOut < MIN_BUFFER || daiOut > BUFFER_TRIGGER) divest(daiOut);
 
@@ -194,7 +186,7 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         returns(uint128)
     {
         return YieldMath.fyDaiOutForVYDaiIn(
-            getDaiReserves(),
+            getTradingDaiReserves(),
             getFYDaiReserves(),
             daiIn,
             (maturity - block.timestamp).toUint128(), // This can't be called after maturity
@@ -216,7 +208,7 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         returns(uint128)
     {
         uint128 fyDaiOut = YieldMath.fyDaiOutForVYDaiIn(
-            getDaiReserves(),
+            getTradingDaiReserves(),
             getFYDaiReserves(),
             daiIn,
             (maturity - block.timestamp).toUint128(), // This can't be called after maturity
@@ -242,7 +234,7 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         returns(uint128)
     {
         return YieldMath.fyDaiInForVYDaiOut(
-            getDaiReserves(),
+            getTradingDaiReserves(),
             getFYDaiReserves(),
             daiOut,
             (maturity - block.timestamp).toUint128(), // This can't be called after maturity
@@ -264,7 +256,7 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         returns(uint128)
     {
         uint128 fyDaiIn = YieldMath.fyDaiInForVYDaiOut(
-            getDaiReserves(),
+            getTradingDaiReserves(),
             getFYDaiReserves(),
             daiOut,
             (maturity - block.timestamp).toUint128(), // This can't be called after maturity
@@ -290,7 +282,7 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         returns(uint128)
     {
         return YieldMath.vyDaiOutForFYDaiIn(
-            getDaiReserves(),
+            getTradingDaiReserves(),
             getFYDaiReserves(),
             fyDaiIn,
             (maturity - block.timestamp).toUint128(), // This can't be called after maturity
@@ -312,7 +304,7 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         returns(uint128)
     {
         uint128 daiOut = YieldMath.vyDaiOutForFYDaiIn(
-            getDaiReserves(),
+            getTradingDaiReserves(),
             getFYDaiReserves(),
             fyDaiIn,
             (maturity - block.timestamp).toUint128(), // This can't be called after maturity
@@ -338,7 +330,7 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         returns(uint128)
     {
         return YieldMath.vyDaiInForFYDaiOut(
-            getDaiReserves(),
+            getTradingDaiReserves(),
             getFYDaiReserves(),
             fyDaiOut,
             (maturity - block.timestamp).toUint128(), // This can't be called after maturity
@@ -360,7 +352,7 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         returns(uint128)
     {
         uint128 daiIn = YieldMath.vyDaiInForFYDaiOut(
-            getDaiReserves(),
+            getTradingDaiReserves(),
             getFYDaiReserves(),
             fyDaiOut,
             (maturity - block.timestamp).toUint128(), // This can't be called after maturity
@@ -385,19 +377,27 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         return fyDai.balanceOf(address(this)).add(totalSupply()).toUint128();
     }
 
-    /// @dev Returns the dai reserves
-    function getDaiReserves()
+    /// @dev Returns the dai reserves for trading purposes
+    function getTradingDaiReserves()
         public view override
         returns(uint128)
     {
         return dai.balanceOf(address(this)).add(invested).sub(harvested).toUint128();
     }
 
+    /// @dev Returns the dai reserves for liquidity purposes
+    function getLiquidityDaiReserves()
+        public view override
+        returns(uint128)
+    {
+        return dai.balanceOf(address(this)).add(invested).toUint128();
+    }
+
     function invest() internal {
         require (dai.balanceOf(address(this)) > MID_BUFFER, "Pool: Not enough Dai to invest");
-        uint256 daiAmount = dai.balanceOf(address(this)) - MID_BUFFER;
+        uint256 daiIn = dai.balanceOf(address(this)) - MID_BUFFER; // daiIn goes into Compound
         uint256 daiBalance = dai.balanceOf(address(this));
-        uint256 daiToInvest = daiAmount < daiBalance ? daiAmount : daiBalance;
+        uint256 daiToInvest = daiIn < daiBalance ? daiIn : daiBalance;
 
         invested = invested.add(daiToInvest);
         investedRate = investedRate.add(
@@ -409,17 +409,18 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         cDai.mint(daiToInvest);
     }
 
+    // daiAmount is the upcoming dai removal from the Pool
     function divest(uint256 daiAmount) internal {
-        // dai.balanceOf(address(this)).sub(daiAmount) < MID_BUFFER
         require (dai.balanceOf(address(this)) < MID_BUFFER.add(daiAmount), "Pool: Too much Dai to divest");
         uint256 exchangeRate = cDai.exchangeRateCurrent();
-        uint256 cDaiAmount = daiAmount.mul(exchangeRate);
+        uint256 daiOut = MID_BUFFER.add(daiAmount).sub(dai.balanceOf(address(this))); // daiOut is how much we must divest to go to MID_BUFFER
+        uint256 cDaiOut = daiOut.divd(exchangeRate);
         uint256 cDaiBalance = cDai.balanceOf(address(this));
-        uint256 cDaiToDivest = cDaiAmount < cDaiBalance ? cDaiAmount : cDaiBalance;
-        
+        uint256 cDaiToDivest = cDaiOut < cDaiBalance ? cDaiOut : cDaiBalance;
+
         // The dai obtained is subtracted from the invested dai accounting up to the investedRate, the rest is profit
-        uint256 daiToDivest = cDaiToDivest.div(investedRate);
-        uint256 daiProfit = cDaiToDivest.div(exchangeRate.sub(investedRate));
+        uint256 daiToDivest = cDaiToDivest.muld(investedRate);
+        uint256 daiProfit = cDaiToDivest.muld(exchangeRate.sub(investedRate));
         invested = invested.sub(daiToDivest);
         harvested = harvested.add(daiProfit);
         
