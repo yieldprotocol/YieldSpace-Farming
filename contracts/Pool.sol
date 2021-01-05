@@ -48,9 +48,9 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
     IUniswapV2Router public immutable uniswap;
     IComptroller public immutable comptroller;
 
-    uint256 public harvested;
-    uint256 public investedRate;
-    uint256 public daiInvested;
+    uint256 public invested;     // Dai amount that has been invested into cDai, minus amount divested at investedRate
+    uint256 public harvested;    // Dai profit obtained from investing and then divesting, as the differential between investedRate and exchangeRateCurrent at the time of divesting
+    uint256 public investedRate; // Prorrated exchangeRate across all investment events
 
     constructor(ICToken cDai_, IFYDai fyDai_, IComptroller comptroller_, IUniswapV2Router uniswap_, string memory name_, string memory symbol_)
         ERC20Permit(name_, symbol_)
@@ -122,40 +122,43 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
     /// The liquidity provider needs to have called `dai.approve` and `fyDai.approve`.
     /// @param from Wallet providing the dai and fyDai. Must have approved the operator with `pool.addDelegate(operator)`.
     /// @param to Wallet receiving the minted liquidity tokens.
-    /// @param daiOffered Amount of `dai` being invested, an appropriate amount of `fyDai` to be invested alongside will be calculated and taken by this function from the caller.
+    /// @param daiIn Amount of `dai` being invested, an appropriate amount of `fyDai` to be invested alongside will be calculated and taken by this function from the caller.
     /// @return The amount of liquidity tokens minted.
-    function mint(address from, address to, uint256 daiOffered)
+    function mint(address from, address to, uint256 daiIn)
         external override
         onlyHolderOrDelegate(from, "Pool: Only Holder Or Delegate")
         returns (uint256)
     {
         uint256 supply = totalSupply();
-        if (supply == 0) return init(daiOffered);
+        if (supply == 0) return init(daiIn);
 
         uint256 daiReserves = dai.balanceOf(address(this));
         // use the actual reserves rather than the virtual reserves
         uint256 fyDaiReserves = fyDai.balanceOf(address(this));
-        uint256 tokensMinted = supply.mul(daiOffered).div(daiReserves);
-        uint256 fyDaiRequired = fyDaiReserves.mul(tokensMinted).div(supply);
+        uint256 lpOut = supply.mul(daiIn).div(daiReserves);
+        uint256 fyDaiIn = fyDaiReserves.mul(lpOut).div(supply);
 
-        require(daiReserves.add(daiOffered) <= type(uint128).max); // daiReserves can't go over type(uint128).max
-        require(supply.add(fyDaiReserves.add(fyDaiRequired)) <= type(uint128).max); // fyDaiReserves can't go over type(uint128).max
+        require(daiReserves.add(daiIn) <= type(uint128).max); // daiReserves can't go over type(uint128).max
+        require(supply.add(fyDaiReserves.add(fyDaiIn)) <= type(uint128).max); // fyDaiReserves can't go over type(uint128).max
 
-        require(dai.transferFrom(from, address(this), daiOffered));
-        require(fyDai.transferFrom(from, address(this), fyDaiRequired));
-        _mint(to, tokensMinted);
-        emit Liquidity(maturity, from, to, -(daiOffered.toInt256()), -(fyDaiRequired.toInt256()), tokensMinted.toInt256());
+        require(dai.transferFrom(from, address(this), daiIn));
+        require(fyDai.transferFrom(from, address(this), fyDaiIn));
+        _mint(to, lpOut);
+        
+        emit Liquidity(maturity, from, to, -(daiIn.toInt256()), -(fyDaiIn.toInt256()), lpOut.toInt256());
 
-        return tokensMinted;
+        if (dai.balanceOf(address(this)) > MAX_BUFFER || daiIn > BUFFER_TRIGGER) invest();
+
+        return lpOut;
     }
 
     /// @dev Burn liquidity tokens in exchange for dai and fyDai.
     /// The liquidity provider needs to have called `pool.approve`.
     /// @param from Wallet providing the liquidity tokens. Must have approved the operator with `pool.addDelegate(operator)`.
     /// @param to Wallet receiving the dai and fyDai.
-    /// @param tokensBurned Amount of liquidity tokens being burned.
+    /// @param lpIn Amount of liquidity tokens being burned.
     /// @return The amount of reserve tokens returned (daiTokens, fyDaiTokens).
-    function burn(address from, address to, uint256 tokensBurned)
+    function burn(address from, address to, uint256 lpIn)
         external override
         beforeMaturity()
         onlyHolderOrDelegate(from, "Pool: Only Holder Or Delegate")
@@ -164,20 +167,22 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         uint256 supply = totalSupply();
         uint256 daiReserves = dai.balanceOf(address(this));
         // use the actual reserves rather than the virtual reserves
-        uint256 daiReturned;
-        uint256 fyDaiReturned;
+        uint256 daiOut;
+        uint256 fyDaiOut;
         { // avoiding stack too deep
             uint256 fyDaiReserves = fyDai.balanceOf(address(this));
-            daiReturned = tokensBurned.mul(daiReserves).div(supply);
-            fyDaiReturned = tokensBurned.mul(fyDaiReserves).div(supply);
+            daiOut = lpIn.mul(daiReserves).div(supply);
+            fyDaiOut = lpIn.mul(fyDaiReserves).div(supply);
         }
 
-        _burn(from, tokensBurned);
-        dai.transfer(to, daiReturned);
-        fyDai.transfer(to, fyDaiReturned);
-        emit Liquidity(maturity, from, to, daiReturned.toInt256(), fyDaiReturned.toInt256(), -(tokensBurned.toInt256()));
+        if (dai.balanceOf(address(this)) - daiOut < MIN_BUFFER || daiOut > BUFFER_TRIGGER) divest(daiOut);
 
-        return (daiReturned, fyDaiReturned);
+        _burn(from, lpIn);
+        dai.transfer(to, daiOut);
+        fyDai.transfer(to, fyDaiOut);
+        emit Liquidity(maturity, from, to, daiOut.toInt256(), fyDaiOut.toInt256(), -(lpIn.toInt256()));
+
+        return (daiOut, fyDaiOut);
     }
 
     /// @dev Hypothetical sell Dai for fyDai trade
@@ -385,7 +390,7 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         public view override
         returns(uint128)
     {
-        return dai.balanceOf(address(this)).sub(harvested).toUint128();
+        return dai.balanceOf(address(this)).add(invested).sub(harvested).toUint128();
     }
 
     function invest() internal {
@@ -394,10 +399,10 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         uint256 daiBalance = dai.balanceOf(address(this));
         uint256 daiToInvest = daiAmount < daiBalance ? daiAmount : daiBalance;
 
-        daiInvested = daiInvested.add(daiToInvest);
+        invested = invested.add(daiToInvest);
         investedRate = investedRate.add(
             (cDai.exchangeRateCurrent().sub(investedRate)).mul(
-                daiToInvest.div(daiInvested)
+                daiToInvest.div(invested)
             )
         );
         
@@ -415,7 +420,7 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         // The dai obtained is subtracted from the invested dai accounting up to the investedRate, the rest is profit
         uint256 daiToDivest = cDaiToDivest.div(investedRate);
         uint256 daiProfit = cDaiToDivest.div(exchangeRate.sub(investedRate));
-        daiInvested = daiInvested.sub(daiToDivest);
+        invested = invested.sub(daiToDivest);
         harvested = harvested.add(daiProfit);
         
         cDai.burn(cDaiToDivest);
