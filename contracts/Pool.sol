@@ -48,9 +48,9 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
     IUniswapV2Router public immutable uniswap;
     IComptroller public immutable comptroller;
 
-    uint256 public invested;            // Dai amount that has been invested into cDai, minus amount divested at investedRate
-    uint256 public harvested;           // Dai profit obtained from investing and then divesting, as the differential between investedRate and exchangeRateCurrent at the time of divesting
-    uint256 public investedRate = 1e27; // Prorrated exchangeRate across all investment events
+    uint256 public invested;     // Dai amount that has been invested into cDai, minus amount divested at investedRate
+    uint256 public harvested;    // Dai profit obtained from investing and then divesting, as the differential between investedRate and exchangeRateCurrent at the time of divesting
+    uint256 public investedRate; // Prorrated exchangeRate across all investment events
 
     constructor(ICToken cDai_, IFYDai fyDai_, IComptroller comptroller_, IUniswapV2Router uniswap_, string memory name_, string memory symbol_)
         ERC20Permit(name_, symbol_)
@@ -65,6 +65,7 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         uniswap = uniswap_;
 
         maturity = fyDai.maturity().toUint128();
+        investedRate = cDai.exchangeRateStored();
 
         dai.approve(address(cDai_), uint256(-1)); // Approve sending Dai to dai for minting
     }
@@ -400,12 +401,17 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         uint256 daiToInvest = daiIn < daiBalance ? daiIn : daiBalance;
 
         invested = invested.add(daiToInvest);
+
+        /*
+         * r_i = r_i + (r_e - r_i) * (z / Z)
+         * Note that z / Z produces a RAY out of two WAD
+         */
         investedRate = investedRate.add(
-            (cDai.exchangeRateCurrent().sub(investedRate)).mul(
-                daiToInvest.div(invested)
+            (cDai.exchangeRateCurrent().sub(investedRate)).muldrup(
+                daiToInvest.mul(DecimalMath.UNIT).div(invested)
             )
         );
-        
+
         cDai.mint(daiToInvest);
     }
 

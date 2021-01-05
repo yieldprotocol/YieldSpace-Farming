@@ -9,7 +9,7 @@ const ComptrollerMock = artifacts.require('ComptrollerMock')
 const UniswapV2RouterMock = artifacts.require('UniswapV2RouterMock')
 
 import * as helper from 'ganache-time-traveler'
-import { toWad, ZERO, MAX } from './shared/utils'
+import { toWad, toRay, mulRay, divRay, ZERO, MAX } from './shared/utils'
 
 // @ts-ignore
 import { BN } from '@openzeppelin/test-helpers'
@@ -39,7 +39,7 @@ async function currentTimestamp() {
   return parseInt((await web3.eth.getBlock(block)).timestamp.toString())
 }
 
-contract('Pool', async (accounts) => {
+contract('Pool - Harvest', async (accounts) => {
   let [owner, user1, user2, operator, from, to] = accounts
 
   const oneToken = new BN('1000000000000000000')
@@ -49,6 +49,7 @@ contract('Pool', async (accounts) => {
   const BUFFER_TRIGGER = oneToken.muln(10000)
 
   const cDaiTokens = oneToken.muln(1000000)
+  const exchangeRate = toRay(0.5)
   const fyDaiTokens = cDaiTokens
   const initialDai = cDaiTokens
 
@@ -82,6 +83,7 @@ contract('Pool', async (accounts) => {
 
     // Setup cDai
     cDai = await CDai.new(dai.address)
+    await cDai.setExchangeRate(exchangeRate)
 
     // Set Comptroller
     comptroller = await ComptrollerMock.new()
@@ -111,24 +113,78 @@ contract('Pool', async (accounts) => {
       await pool.mint(user1, user1, MID_BUFFER, { from: user1 }) // The initial mint doesn't cause an investing event
       await pool.mint(user1, user1, oneToken, { from: user1 })
 
-      assert.equal((await cDai.balanceOf(pool.address)).toString(), ZERO.toString())
-      assert.equal((await dai.balanceOf(pool.address)).toString(), MID_BUFFER.add(oneToken).toString())
+      assert.equal(
+        (await cDai.balanceOf(pool.address)).toString(),
+        ZERO.toString()
+      )
+      assert.equal(
+        (await dai.balanceOf(pool.address)).toString(),
+        MID_BUFFER.add(oneToken).toString()
+      )
     })
 
     it('mints above BUFFER_TRIGGER cause to invest', async () => {
       await pool.mint(user1, user1, MID_BUFFER, { from: user1 }) // The initial mint doesn't cause an investing event
       await pool.mint(user1, user1, BUFFER_TRIGGER.muln(1.5), { from: user1 })
 
-      assert.equal((await cDai.balanceOf(pool.address)).toString(), BUFFER_TRIGGER.muln(1.5).toString())
-      assert.equal((await dai.balanceOf(pool.address)).toString(), MID_BUFFER.toString())
+      assert.equal(
+        (await cDai.balanceOf(pool.address)).toString(),
+        mulRay(BUFFER_TRIGGER.muln(1.5).toString(), exchangeRate.toString()).toString()
+      )
+      assert.equal(
+        (await dai.balanceOf(pool.address)).toString(),
+        MID_BUFFER.toString()
+      )
     })
 
     it('mints above MAX_BUFFER cause to invest', async () => {
       await pool.mint(user1, user1, MAX_BUFFER, { from: user1 }) // The initial mint doesn't cause an investing event
       await pool.mint(user1, user1, oneToken.muln(1000), { from: user1 })
 
-      assert.equal((await cDai.balanceOf(pool.address)).toString(), MAX_BUFFER.add(oneToken.muln(1000)).sub(MID_BUFFER).toString())
-      assert.equal((await dai.balanceOf(pool.address)).toString(), MID_BUFFER.toString())
+      assert.equal(
+        (await cDai.balanceOf(pool.address)).toString(),
+        mulRay(MAX_BUFFER.add(oneToken.muln(1000)).sub(MID_BUFFER).toString(), exchangeRate.toString()).toString()
+      )
+      assert.equal(
+        (await dai.balanceOf(pool.address)).toString(),
+        MID_BUFFER.toString()
+      )
+    })
+
+    it('investedRate is the prorrated exchangeRate of each investment', async () => {
+      assert.equal(
+        (await pool.investedRate()).toString(),
+        exchangeRate.toString()
+      )
+
+      await pool.mint(user1, user1, MID_BUFFER, { from: user1 })
+      assert.equal(
+        (await pool.investedRate()).toString(),
+        exchangeRate.toString()
+      )
+
+      await pool.mint(user1, user1, BUFFER_TRIGGER.muln(2), { from: user1 })
+      assert.equal(
+        (await pool.investedRate()).toString(),
+        toRay(0.5).toString()// exchangeRate.toString()
+      )
+
+      const exchangeRate2 = toRay(1)
+      await cDai.setExchangeRate(exchangeRate2)
+
+      await pool.mint(user1, user1, BUFFER_TRIGGER.muln(2), { from: user1 })
+      assert.equal(
+        (await pool.investedRate()).toString(),
+        toRay(0.75).toString()// exchangeRate.toString()
+      )
+
+      const exchangeRate3 = toRay(1.5)
+      await cDai.setExchangeRate(exchangeRate3)
+      await pool.mint(user1, user1, BUFFER_TRIGGER.muln(2), { from: user1 })
+      assert.equal(
+        (await pool.investedRate()).toString(),
+        toRay(1).toString() // exchangeRate.toString()
+      )
     })
   })
 
@@ -139,23 +195,40 @@ contract('Pool', async (accounts) => {
       await pool.mint(user1, user1, MAX_BUFFER, { from: user1 })
       await pool.mint(user1, user1, MID_BUFFER, { from: user1 })
 
-      assert.equal((await cDai.balanceOf(pool.address)).toString(), MAX_BUFFER.toString())
-      assert.equal((await dai.balanceOf(pool.address)).toString(), MID_BUFFER.toString())
+      assert.equal(
+        (await cDai.balanceOf(pool.address)).toString(),
+        mulRay(MAX_BUFFER.toString(), exchangeRate.toString()).toString())
+      assert.equal(
+        (await dai.balanceOf(pool.address)).toString(),
+        MID_BUFFER.toString()
+      )
     })
 
     it('burns above MIN_BUFFER and BUFFER_TRIGGER don\'t cause to divest', async () => {
       
       await pool.burn(user1, user1, oneToken, { from: user1 }) // 1 LP == 1 Dai so far
 
-      assert.equal((await cDai.balanceOf(pool.address)).toString(), MAX_BUFFER.toString())
-      assert.equal((await dai.balanceOf(pool.address)).toString(), MID_BUFFER.sub(oneToken).toString())
+      assert.equal(
+        (await cDai.balanceOf(pool.address)).toString(),
+        mulRay(MAX_BUFFER.toString(), exchangeRate.toString()).toString()
+      )
+      assert.equal(
+        (await dai.balanceOf(pool.address)).toString(),
+        MID_BUFFER.sub(oneToken).toString()
+      )
     })
 
     it('burns above BUFFER_TRIGGER cause to divest', async () => {
       await pool.burn(user1, user1, BUFFER_TRIGGER.muln(1.5), { from: user1 })
 
-      assert.equal((await cDai.balanceOf(pool.address)).toString(), MAX_BUFFER.sub(BUFFER_TRIGGER.muln(1.5)).toString())
-      assert.equal((await dai.balanceOf(pool.address)).toString(), MID_BUFFER.toString())
+      assert.equal(
+        (await cDai.balanceOf(pool.address)).toString(),
+        mulRay(MAX_BUFFER.sub(BUFFER_TRIGGER.muln(1.5)).toString(), exchangeRate.toString()).toString()
+      )
+      assert.equal(
+        (await dai.balanceOf(pool.address)).toString(),
+        MID_BUFFER.toString()
+      )
     })
 
     it('burns below MIN_BUFFER cause to divest', async () => {
@@ -164,8 +237,14 @@ contract('Pool', async (accounts) => {
 
       await pool.burn(user1, user1, BUFFER_TRIGGER, { from: user1 }) // Divest!
 
-      assert.equal((await cDai.balanceOf(pool.address)).toString(), MAX_BUFFER.sub(BUFFER_TRIGGER.muln(3)).toString())
-      assert.equal((await dai.balanceOf(pool.address)).toString(), MID_BUFFER.toString())
+      assert.equal(
+        (await cDai.balanceOf(pool.address)).toString(),
+        mulRay(MAX_BUFFER.sub(BUFFER_TRIGGER.muln(3)).toString(), exchangeRate.toString()).toString()
+      )
+      assert.equal(
+        (await dai.balanceOf(pool.address)).toString(),
+        MID_BUFFER.toString()
+      )
     })
   })
 

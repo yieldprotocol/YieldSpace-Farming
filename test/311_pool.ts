@@ -134,7 +134,7 @@ contract('Pool', async (accounts) => {
     })
 
     it('sells fyDai', async () => {
-      const daiReserves = await pool.getDaiReserves()
+      const daiReserves = await pool.getTradingDaiReserves()
       const fyDaiReserves = await pool.getFYDaiReserves()
       const fyDaiIn = toWad(1)
       const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
@@ -178,7 +178,7 @@ contract('Pool', async (accounts) => {
     })
 
     it('buys dai', async () => {
-      const daiReserves = await pool.getDaiReserves()
+      const daiReserves = await pool.getTradingDaiReserves()
       const fyDaiReserves = await pool.getFYDaiReserves()
       const daiOut = toWad(1)
       const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
@@ -303,7 +303,7 @@ contract('Pool', async (accounts) => {
       })
 
       it('sells dai', async () => {
-        const daiReserves = await pool.getDaiReserves()
+        const daiReserves = await pool.getTradingDaiReserves()
         const fyDaiReserves = await pool.getFYDaiReserves()
         const daiIn = toWad(1)
 
@@ -349,7 +349,7 @@ contract('Pool', async (accounts) => {
       })
 
       it('buys fyDai', async () => {
-        const daiReserves = await pool.getDaiReserves()
+        const daiReserves = await pool.getTradingDaiReserves()
         const fyDaiReserves = await pool.getFYDaiReserves()
         const fyDaiOut = toWad(1)
         const now = new BN((await web3.eth.getBlock(await web3.eth.getBlockNumber())).timestamp)
