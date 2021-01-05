@@ -65,7 +65,7 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         uniswap = uniswap_;
 
         maturity = fyDai.maturity().toUint128();
-        investedRate = cDai.exchangeRateStored();
+        investedRate = cDai.exchangeRateStored(); // cDai is 28 decimals !!!! TODO: Fix
 
         dai.approve(address(cDai_), uint256(-1)); // Approve sending Dai to dai for minting
     }
