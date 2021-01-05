@@ -10,7 +10,7 @@ const UniswapV2RouterMock = artifacts.require('UniswapV2RouterMock')
 
 const { floor } = require('mathjs')
 import * as helper from 'ganache-time-traveler'
-import { toWad, toRay, mulRay, divRay } from './shared/utils'
+import { toWad, toRay, ZERO } from './shared/utils'
 import { mint, burn, sellVYDai, sellFYDai, buyVYDai, buyFYDai } from './shared/yieldspace'
 // @ts-ignore
 import { BN, expectEvent, expectRevert } from '@openzeppelin/test-helpers'
@@ -110,14 +110,14 @@ contract('Pool', async (accounts) => {
 
     await dai.approve(pool.address, initialDai, { from: user1 })
     const tx = await pool.mint(user1, user1, initialDai, { from: user1 })
-    const event = tx.logs[tx.logs.length - 1]
 
-    assert.equal(event.event, 'Liquidity')
-    assert.equal(event.args.from, user1)
-    assert.equal(event.args.to, user1)
-    assert.equal(event.args.daiTokens.toString(), initialDai.neg().toString())
-    assert.equal(event.args.fyDaiTokens.toString(), 0)
-    assert.equal(event.args.poolTokens.toString(), initialDai.toString())
+    expectEvent(tx, 'Liquidity', {
+      from: user1,
+      to: user1,
+      daiTokens: initialDai.neg().toString(),
+      fyDaiTokens: ZERO,
+      poolTokens: initialDai.toString()
+    })
 
     assert.equal(
       await pool.balanceOf(user1),
