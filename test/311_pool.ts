@@ -13,7 +13,7 @@ import * as helper from 'ganache-time-traveler'
 import { toWad, toRay, mulRay, divRay } from './shared/utils'
 import { mint, burn, sellVYDai, sellFYDai, buyVYDai, buyFYDai } from './shared/yieldspace'
 // @ts-ignore
-import { BN, expectRevert } from '@openzeppelin/test-helpers'
+import { BN, expectEvent, expectRevert } from '@openzeppelin/test-helpers'
 import { assert, expect } from 'chai'
 import { Contract } from './shared/fixtures'
 
@@ -161,13 +161,13 @@ contract('Pool', async (accounts) => {
       await fyDai1.mint(from, fyDaiIn, { from: owner })
       await fyDai1.approve(pool.address, fyDaiIn, { from: from })
       const tx = await pool.sellFYDai(from, to, fyDaiIn, { from: operator })
-      const event = tx.logs[tx.logs.length - 1]
 
-      assert.equal(event.event, 'Trade')
-      assert.equal(event.args.from, from)
-      assert.equal(event.args.to, to)
-      assert.equal(event.args.daiTokens, (await dai.balanceOf(to)).toString())
-      assert.equal(event.args.fyDaiTokens, fyDaiIn.neg().toString())
+      expectEvent(tx, 'Trade', {
+        from: from,
+        to: to,
+        daiTokens: (await dai.balanceOf(to)).toString(),
+        fyDaiTokens: fyDaiIn.neg().toString(),
+      })
 
       assert.equal(await fyDai1.balanceOf(from), 0, "'From' wallet should have no fyDai tokens")
 
@@ -206,15 +206,15 @@ contract('Pool', async (accounts) => {
       await pool.addDelegate(operator, { from: from })
       await fyDai1.approve(pool.address, fyDaiTokens, { from: from })
       const tx = await pool.buyDai(from, to, daiOut, { from: operator })
-      const event = tx.logs[tx.logs.length - 1]
 
       const fyDaiIn = fyDaiTokens.sub(await fyDai1.balanceOf(from))
 
-      assert.equal(event.event, 'Trade')
-      assert.equal(event.args.from, from)
-      assert.equal(event.args.to, to)
-      assert.equal(event.args.daiTokens, daiOut.toString())
-      assert.equal(event.args.fyDaiTokens, fyDaiIn.neg().toString())
+      expectEvent(tx, 'Trade', {
+        from: from,
+        to: to,
+        daiTokens: daiOut.toString(),
+        fyDaiTokens: fyDaiIn.neg().toString(),
+      })
 
       assert.equal(await dai.balanceOf(to), daiOut.toString(), 'Receiver account should have 1 dai token')
 
@@ -246,7 +246,6 @@ contract('Pool', async (accounts) => {
         await dai.approve(pool.address, oneToken, { from: user1 })
         await fyDai1.approve(pool.address, fyDaiTokens, { from: user1 })
         const tx = await pool.mint(user1, user2, oneToken, { from: user1 })
-        const event = tx.logs[tx.logs.length - 1]
 
         const [expectedMinted, expectedFYDaiIn] = mint(
           daiReserves.toString(),
@@ -258,12 +257,13 @@ contract('Pool', async (accounts) => {
         const minted = (await pool.balanceOf(user2)).sub(poolTokensBefore)
         const fyDaiIn = fyDaiBefore.sub(await fyDai1.balanceOf(user1))
 
-        assert.equal(event.event, 'Liquidity')
-        assert.equal(event.args.from, user1)
-        assert.equal(event.args.to, user2)
-        assert.equal(event.args.daiTokens, oneToken.neg().toString())
-        assert.equal(event.args.fyDaiTokens, fyDaiIn.neg().toString())
-        assert.equal(event.args.poolTokens, minted.toString())
+        expectEvent(tx, 'Liquidity', {
+          from: user1,
+          to: user2,
+          daiTokens: oneToken.neg().toString(),
+          fyDaiTokens: fyDaiIn.neg().toString(),
+          poolTokens: minted.toString()
+        })
 
         almostEqual(minted, floor(expectedMinted).toFixed(), daiIn.div(new BN('10000')))
         almostEqual(fyDaiIn, floor(expectedFYDaiIn).toFixed(), daiIn.div(new BN('10000')))
@@ -279,7 +279,6 @@ contract('Pool', async (accounts) => {
 
         await pool.approve(pool.address, lpTokensIn, { from: user1 })
         const tx = await pool.burn(user1, user2, lpTokensIn, { from: user1 })
-        const event = tx.logs[tx.logs.length - 1]
 
         const [expectedDaiOut, expectedFYDaiOut] = mint(
           daiReserves.toString(),
@@ -291,12 +290,13 @@ contract('Pool', async (accounts) => {
         const daiOut = daiReserves.sub(await dai.balanceOf(pool.address))
         const fyDaiOut = fyDaiReserves.sub(await fyDai1.balanceOf(pool.address))
 
-        assert.equal(event.event, 'Liquidity')
-        assert.equal(event.args.from, user1)
-        assert.equal(event.args.to, user2)
-        assert.equal(event.args.poolTokens, lpTokensIn.neg().toString())
-        assert.equal(event.args.fyDaiTokens, fyDaiOut.toString())
-        assert.equal(event.args.daiTokens, daiOut.toString())
+        expectEvent(tx, 'Liquidity', {
+          from: user1,
+          to: user2,
+          daiTokens: daiOut.toString(),
+          fyDaiTokens: fyDaiOut.toString(),
+          poolTokens: lpTokensIn.neg().toString()
+        })
 
         almostEqual(daiOut, floor(expectedDaiOut).toFixed(), lpTokensIn.div(new BN('10000')))
         almostEqual(fyDaiOut, floor(expectedFYDaiOut).toFixed(), lpTokensIn.div(new BN('10000')))
@@ -332,15 +332,15 @@ contract('Pool', async (accounts) => {
         await dai.approve(pool.address, daiIn, { from: from })
 
         const tx = await pool.sellDai(from, to, daiIn, { from: operator })
-        const event = tx.logs[tx.logs.length - 4]
 
         const fyDaiOut = await fyDai1.balanceOf(to)
 
-        assert.equal(event.event, 'Trade')
-        assert.equal(event.args.from, from)
-        assert.equal(event.args.to, to)
-        assert.equal(event.args.daiTokens, daiIn.neg().toString())
-        assert.equal(event.args.fyDaiTokens, fyDaiOut.toString())
+        expectEvent(tx, 'Trade', {
+          from: from,
+          to: to,
+          daiTokens: daiIn.neg().toString(),
+          fyDaiTokens: fyDaiOut.toString(),
+        })
 
         assert.equal(await dai.balanceOf(from), 0, "'From' wallet should have no dai tokens")
 
@@ -378,15 +378,15 @@ contract('Pool', async (accounts) => {
 
         await dai.approve(pool.address, daiTokens, { from: from })
         const tx = await pool.buyFYDai(from, to, fyDaiOut, { from: operator })
-        const event = tx.logs[tx.logs.length - 4]
 
         const daiIn = daiBalanceBefore.sub(await dai.balanceOf(from))
 
-        assert.equal(event.event, 'Trade')
-        assert.equal(event.args.from, from)
-        assert.equal(event.args.to, to)
-        assert.equal(event.args.daiTokens, daiIn.neg().toString())
-        assert.equal(event.args.fyDaiTokens, fyDaiOut.toString())
+        expectEvent(tx, 'Trade', {
+          from: from,
+          to: to,
+          daiTokens: daiIn.neg().toString(),
+          fyDaiTokens: fyDaiOut.toString(),
+        })
 
         assert.equal(await fyDai1.balanceOf(to), fyDaiOut.toString(), "'To' wallet should have 1 fyDai token")
 
