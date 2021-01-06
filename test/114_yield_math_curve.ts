@@ -1,7 +1,7 @@
 import { artifacts, contract } from 'hardhat'
 
-const VariableYieldMathWrapper = artifacts.require('VariableYieldMathWrapper')
-const VariableYieldMath = artifacts.require('VariableYieldMath')
+const YieldMathWrapper = artifacts.require('YieldMathWrapper')
+const YieldMath = artifacts.require('YieldMath')
 
 import * as helper from 'ganache-time-traveler'
 // @ts-ignore
@@ -28,7 +28,7 @@ function toBigNumber(x: any) {
   }
 }
 
-contract('VariableYieldMath - Curve', async (accounts) => {
+contract('YieldMath - Curve', async (accounts) => {
   let snapshot: any
   let snapshotId: string
 
@@ -39,8 +39,6 @@ contract('VariableYieldMath - Curve', async (accounts) => {
   const g1 = new BN('950').mul(b).div(new BN('1000')) // Sell Dai to the pool
   const g2 = new BN('1000').mul(b).div(new BN('950')) // Sell fyDai to the pool
 
-  const ONE64 = new BN('18446744073709551616') // In 64.64 format
-
   const values = [
     ['10000000000000000000000', '1000000000000000000000', '10000000000000000000', '1000000'],
     ['100000000000000000000000000', '10000000000000000000000000', '1000000000000000000000', '1000000'],
@@ -49,8 +47,8 @@ contract('VariableYieldMath - Curve', async (accounts) => {
   const timeTillMaturity = ['0', '40', '4000', '400000', '40000000']
 
   before(async () => {
-    const yieldMathLibrary = await VariableYieldMath.new()
-    await VariableYieldMathWrapper.link(yieldMathLibrary)
+    const yieldMathLibrary = await YieldMath.new()
+    await YieldMathWrapper.link(yieldMathLibrary)
   })
 
   beforeEach(async () => {
@@ -58,7 +56,7 @@ contract('VariableYieldMath - Curve', async (accounts) => {
     snapshotId = snapshot['result']
 
     // Setup YieldMathDAIWrapper
-    yieldMath = await VariableYieldMathWrapper.new()
+    yieldMath = await YieldMathWrapper.new()
   })
 
   afterEach(async () => {
@@ -91,8 +89,7 @@ contract('VariableYieldMath - Curve', async (accounts) => {
             daiAmount,
             timeTillMaturity,
             k,
-            g_,
-            ONE64
+            g_
           )
         }
 
@@ -118,7 +115,7 @@ contract('VariableYieldMath - Curve', async (accounts) => {
         for (var j = 0; j < timeTillMaturity.length; j++) {
           var t = timeTillMaturity[j]
 
-          var result = await yieldMath.fyDaiOutForVYDaiIn(daiReserves, fyDaiReserves, daiAmount, t, k, g1, ONE64)
+          var result = await yieldMath.fyDaiOutForVYDaiIn(daiReserves, fyDaiReserves, daiAmount, t, k, g1)
 
           // console.log("      " + result.toString())
           if (j == 0) {
@@ -160,8 +157,7 @@ contract('VariableYieldMath - Curve', async (accounts) => {
             daiAmount,
             timeTillMaturity,
             k,
-            g_,
-            ONE64
+            g_
           )
         }
 
@@ -186,7 +182,7 @@ contract('VariableYieldMath - Curve', async (accounts) => {
         var previousResult = minimum
         for (var j = 0; j < timeTillMaturity.length; j++) {
           var t = timeTillMaturity[j]
-          var result = await yieldMath.vyDaiOutForFYDaiIn(daiReserves, fyDaiReserves, daiAmount, t, k, g2, ONE64)
+          var result = await yieldMath.vyDaiOutForFYDaiIn(daiReserves, fyDaiReserves, daiAmount, t, k, g2)
 
           // console.log("      " + result.toString())
           if (j == 0) {
@@ -228,8 +224,7 @@ contract('VariableYieldMath - Curve', async (accounts) => {
             daiAmount,
             timeTillMaturity,
             k,
-            g_,
-            ONE64
+            g_
           )
         }
 
@@ -254,7 +249,7 @@ contract('VariableYieldMath - Curve', async (accounts) => {
         var previousResult = maximum
         for (var j = 0; j < timeTillMaturity.length; j++) {
           var t = timeTillMaturity[j]
-          var result = await yieldMath.fyDaiInForVYDaiOut(daiReserves, fyDaiReserves, daiAmount, t, k, g2, ONE64)
+          var result = await yieldMath.fyDaiInForVYDaiOut(daiReserves, fyDaiReserves, daiAmount, t, k, g2)
 
           // console.log("      " + result.toString())
           if (j == 0) {
@@ -296,8 +291,7 @@ contract('VariableYieldMath - Curve', async (accounts) => {
             daiAmount,
             timeTillMaturity,
             k,
-            g_,
-            ONE64
+            g_
           )
         }
 
@@ -322,7 +316,7 @@ contract('VariableYieldMath - Curve', async (accounts) => {
         var previousResult = minimum
         for (var j = 0; j < timeTillMaturity.length; j++) {
           var t = timeTillMaturity[j]
-          var result = await yieldMath.vyDaiInForFYDaiOut(daiReserves, fyDaiReserves, daiAmount, t, k, g1, ONE64)
+          var result = await yieldMath.vyDaiInForFYDaiOut(daiReserves, fyDaiReserves, daiAmount, t, k, g1)
 
           // console.log("      " + result.toString())
           if (j == 0) {

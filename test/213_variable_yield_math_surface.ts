@@ -1,4 +1,4 @@
-import { artifacts, contract } from "hardhat";
+import { artifacts, contract } from 'hardhat'
 
 const VariableYieldMathWrapper = artifacts.require('VariableYieldMathWrapper')
 const VariableYieldMath = artifacts.require('VariableYieldMath')

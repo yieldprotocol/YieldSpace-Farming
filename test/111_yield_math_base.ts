@@ -1,7 +1,7 @@
 import { artifacts, contract } from 'hardhat'
 
-const VariableYieldMathWrapper = artifacts.require('VariableYieldMathWrapper')
-const VariableYieldMath = artifacts.require('VariableYieldMath')
+const YieldMathWrapper = artifacts.require('YieldMathWrapper')
+const YieldMath = artifacts.require('YieldMath')
 
 import * as helper from 'ganache-time-traveler'
 // @ts-ignore
@@ -27,7 +27,7 @@ function toBigNumber(x: any) {
   }
 }
 
-contract('VariableYieldMath - Base', async (accounts) => {
+contract('YieldMath - Base', async (accounts) => {
   let snapshot: any
   let snapshotId: string
 
@@ -36,15 +36,15 @@ contract('VariableYieldMath - Base', async (accounts) => {
   const ONE = '0x10000000000000000'
 
   before(async () => {
-    const yieldMathLibrary = await VariableYieldMath.new()
-    await VariableYieldMathWrapper.link(yieldMathLibrary)
+    const yieldMathLibrary = await YieldMath.new()
+    await YieldMathWrapper.link(yieldMathLibrary)
   })
 
   beforeEach(async () => {
     snapshot = await helper.takeSnapshot()
     snapshotId = snapshot['result']
 
-    yieldMath = await VariableYieldMathWrapper.new()
+    yieldMath = await YieldMathWrapper.new()
   })
 
   afterEach(async () => {

@@ -1,7 +1,7 @@
 import { artifacts, contract } from 'hardhat'
 
-const VariableYieldMathWrapper = artifacts.require('VariableYieldMathWrapper')
-const VariableYieldMath = artifacts.require('VariableYieldMath')
+const YieldMathWrapper = artifacts.require('YieldMathWrapper')
+const YieldMath = artifacts.require('YieldMath')
 
 import * as helper from 'ganache-time-traveler'
 // @ts-ignore
@@ -17,7 +17,7 @@ function toBigNumber(x: any) {
   }
 }
 
-contract('VariableYieldMath - Base', async (accounts) => {
+contract('YieldMath - Base', async (accounts) => {
   let snapshot: any
   let snapshotId: string
 
@@ -42,16 +42,16 @@ contract('VariableYieldMath - Base', async (accounts) => {
   const g2 = new BN('1000').mul(ONE64).div(new BN('950')) // Sell fyDai to the pool
 
   before(async () => {
-    const yieldMathLibrary = await VariableYieldMath.new()
-    await VariableYieldMathWrapper.link(yieldMathLibrary)
+    const yieldMathLibrary = await YieldMath.new()
+    await YieldMathWrapper.link(yieldMathLibrary)
   })
 
   beforeEach(async () => {
     snapshot = await helper.takeSnapshot()
     snapshotId = snapshot['result']
 
-    // Setup VariableYieldMathDAIWrapper
-    yieldMath = await VariableYieldMathWrapper.new()
+    // Setup YieldMathDAIWrapper
+    yieldMath = await YieldMathWrapper.new()
   })
 
   afterEach(async () => {
@@ -70,33 +70,16 @@ contract('VariableYieldMath - Base', async (accounts) => {
           OneToken,
           secondsInFourYears.add(new BN(60 * 60)),
           k,
-          g0,
-          ONE64
+          g0
         ),
         'YieldMath: Too far from maturity'
-      )
-    })
-
-    // If the vyDai reserves, multiplied by c, exceed 2**128, we have too much vyDai to operate
-    it('Exchange rate overflow', async () => {
-      await expectRevert(
-        yieldMath.fyDaiOutForVYDaiIn(
-          MAX.div(TWO).add(OneToken),
-          OneToken.mul(TEN),
-          OneToken,
-          secondsInOneYear,
-          k,
-          g0,
-          ONE64.mul(TWO)
-        ),
-        'YieldMath: Exchange rate overflow'
       )
     })
 
     // If the vyDai in, added to the vyDai reserves, exceed 2**128, we will have too much vyDai to operate
     it('Too much vyDai in', async () => {
       await expectRevert(
-        yieldMath.fyDaiOutForVYDaiIn(MAX, OneToken.mul(TEN), OneToken, secondsInOneYear, k, g0, ONE64),
+        yieldMath.fyDaiOutForVYDaiIn(MAX, OneToken.mul(TEN), OneToken, secondsInOneYear, k, g0),
         'YieldMath: Too much vyDai in'
       )
     })
@@ -104,14 +87,14 @@ contract('VariableYieldMath - Base', async (accounts) => {
     // If the fyDai to be obtained exceeds the fyDai reserves, the trade reverts
     it('Insufficient fyDai reserves', async () => {
       await expectRevert(
-        yieldMath.fyDaiOutForVYDaiIn(OneToken, OneToken.mul(TEN), OneToken.mul(TWENTY), secondsInOneYear, k, g0, ONE64),
+        yieldMath.fyDaiOutForVYDaiIn(OneToken, OneToken.mul(TEN), OneToken.mul(TWENTY), secondsInOneYear, k, g0),
         'YieldMath: Insufficient fyDai reserves'
       )
     })
 
     /* it("Rounding induced error", async () => {
       await expectRevert(
-        yieldMath.fyDaiOutForVYDaiIn(OneToken, OneToken, 0, secondsInOneYear, k, g0, ONE64.mul(TWO)),
+        yieldMath.fyDaiOutForVYDaiIn(OneToken, OneToken, 0, secondsInOneYear, k, g0),
         'YieldMath: Rounding induced error'
       )
     }) */
@@ -129,33 +112,16 @@ contract('VariableYieldMath - Base', async (accounts) => {
           OneToken,
           secondsInFourYears.add(new BN(60 * 60)),
           k,
-          g0,
-          ONE64
+          g0
         ),
         'YieldMath: Too far from maturity'
-      )
-    })
-
-    // If the vyDai reserves, multiplied by c, exceed 2**128, we have too much vyDai to operate
-    it('Exchange rate overflow', async () => {
-      await expectRevert(
-        yieldMath.vyDaiOutForFYDaiIn(
-          MAX.div(TWO).add(OneToken),
-          OneToken.mul(TEN),
-          OneToken,
-          secondsInOneYear,
-          k,
-          g0,
-          ONE64.mul(TWO)
-        ),
-        'YieldMath: Exchange rate overflow'
       )
     })
 
     // If the fyDai in, added to the fyDai reserves, exceed 2**128, we will have too much fyDai to operate
     it('Too much fyDai in', async () => {
       await expectRevert(
-        yieldMath.vyDaiOutForFYDaiIn(OneToken.mul(TEN), MAX, OneToken, secondsInOneYear, k, g0, ONE64),
+        yieldMath.vyDaiOutForFYDaiIn(OneToken.mul(TEN), MAX, OneToken, secondsInOneYear, k, g0),
         'YieldMath: Too much fyDai in'
       )
     })
@@ -163,14 +129,14 @@ contract('VariableYieldMath - Base', async (accounts) => {
     // If the vyDai to be obtained exceeds the vyDai reserves, the trade reverts
     it('Insufficient vyDai reserves', async () => {
       await expectRevert(
-        yieldMath.vyDaiOutForFYDaiIn(OneToken.mul(TEN), OneToken, OneToken.mul(TWENTY), secondsInOneYear, k, g0, ONE64),
+        yieldMath.vyDaiOutForFYDaiIn(OneToken.mul(TEN), OneToken, OneToken.mul(TWENTY), secondsInOneYear, k, g0),
         'YieldMath: Insufficient vyDai reserves'
       )
     })
 
     /* it("Rounding induced error", async () => {
       await expectRevert(
-        yieldMath.vyDaiOutForFYDaiIn(OneToken, OneToken, 0, secondsInOneYear, k, g0, ONE64.mul(TWO)),
+        yieldMath.vyDaiOutForFYDaiIn(OneToken, OneToken, 0, secondsInOneYear, k, g0),
         'YieldMath: Rounding induced error'
       )
     }) */
@@ -188,32 +154,15 @@ contract('VariableYieldMath - Base', async (accounts) => {
           OneToken,
           secondsInFourYears.add(new BN(60 * 60)),
           k,
-          g0,
-          ONE64
+          g0
         ),
         'YieldMath: Too far from maturity'
       )
     })
 
-    // If the vyDai reserves, multiplied by c, exceed 2**128, we have too much vyDai to operate
-    it('Exchange rate overflow', async () => {
-      await expectRevert(
-        yieldMath.fyDaiInForVYDaiOut(
-          MAX.div(TWO).add(OneToken),
-          OneToken.mul(TEN),
-          OneToken,
-          secondsInOneYear,
-          k,
-          g0,
-          ONE64.mul(TWO)
-        ),
-        'YieldMath: Exchange rate overflow'
-      )
-    })
-
     it('Too much vyDai out', async () => {
       await expectRevert(
-        yieldMath.fyDaiInForVYDaiOut(OneToken.mul(TWO), OneToken, OneToken.mul(THREE), secondsInOneYear, k, g0, ONE64),
+        yieldMath.fyDaiInForVYDaiOut(OneToken.mul(TWO), OneToken, OneToken.mul(THREE), secondsInOneYear, k, g0),
         'YieldMath: Too much vyDai out'
       )
     })
@@ -221,14 +170,14 @@ contract('VariableYieldMath - Base', async (accounts) => {
     // If the vyDai to be obtained exceeds the vyDai reserves, the trade reverts
     it('Resulting fyDai reserves too high', async () => {
       await expectRevert(
-        yieldMath.fyDaiInForVYDaiOut(OneToken.mul(TEN), MAX, OneToken, secondsInOneYear, k, g0, ONE64),
+        yieldMath.fyDaiInForVYDaiOut(OneToken.mul(TEN), MAX, OneToken, secondsInOneYear, k, g0),
         'YieldMath: Resulting fyDai reserves too high'
       )
     })
 
     /* it("Rounding induced error", async () => {
       await expectRevert(
-        yieldMath.fyDaiInForVYDaiOut(OneToken, OneToken, 0, secondsInOneYear, k, g0, ONE64.mul(TWO)),
+        yieldMath.fyDaiInForVYDaiOut(OneToken, OneToken, 0, secondsInOneYear, k, g0),
         'YieldMath: Rounding induced error'
       )
     }) */
@@ -246,32 +195,15 @@ contract('VariableYieldMath - Base', async (accounts) => {
           OneToken,
           secondsInFourYears.add(new BN(60 * 60)),
           k,
-          g0,
-          ONE64
+          g0
         ),
         'YieldMath: Too far from maturity'
       )
     })
 
-    // If the vyDai reserves, multiplied by c, exceed 2**128, we have too much vyDai to operate
-    it('Exchange rate overflow', async () => {
-      await expectRevert(
-        yieldMath.vyDaiInForFYDaiOut(
-          MAX.div(TWO).add(OneToken),
-          OneToken.mul(TEN),
-          OneToken,
-          secondsInOneYear,
-          k,
-          g0,
-          ONE64.mul(TWO)
-        ),
-        'YieldMath: Exchange rate overflow'
-      )
-    })
-
     it('Too much fyDai out', async () => {
       await expectRevert(
-        yieldMath.vyDaiInForFYDaiOut(OneToken, OneToken, OneToken.mul(TWO), secondsInOneYear, k, g0, ONE64),
+        yieldMath.vyDaiInForFYDaiOut(OneToken, OneToken, OneToken.mul(TWO), secondsInOneYear, k, g0),
         'YieldMath: Too much fyDai out'
       )
     })
@@ -279,14 +211,14 @@ contract('VariableYieldMath - Base', async (accounts) => {
     // If the vyDai to be traded in makes the vyDai reserves to go over 2**128, the trade reverts
     it('Resulting vyDai reserves too high', async () => {
       await expectRevert(
-        yieldMath.vyDaiInForFYDaiOut(MAX.sub(OneToken), OneToken.mul(TEN), OneToken, secondsInOneYear, k, g0, ONE64),
+        yieldMath.vyDaiInForFYDaiOut(MAX.sub(OneToken), OneToken.mul(TEN), OneToken, secondsInOneYear, k, g0),
         'YieldMath: Resulting vyDai reserves too high'
       )
     })
 
     /* it('Rounding induced error', async () => {
       await expectRevert(
-        yieldMath.vyDaiInForFYDaiOut(OneToken, OneToken, 0, secondsInOneYear, k, g0, ONE64.mul(TWO)),
+        yieldMath.vyDaiInForFYDaiOut(OneToken, OneToken, 0, secondsInOneYear, k, g0),
         'YieldMath: Rounding induced error'
       )
     }) */

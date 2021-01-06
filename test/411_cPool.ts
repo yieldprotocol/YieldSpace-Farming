@@ -1,4 +1,4 @@
-import { artifacts, contract, web3 } from "hardhat";
+import { artifacts, contract, web3 } from 'hardhat'
 
 const CPool = artifacts.require('CPool')
 const Dai = artifacts.require('DaiMock')
@@ -76,7 +76,7 @@ contract('CPool', async (accounts) => {
     snapshotId = snapshot['result']
 
     // Setup fyDai
-    maturity1 = await currentTimestamp() + 31556952 // One year
+    maturity1 = (await currentTimestamp()) + 31556952 // One year
     fyDai1 = await FYDai.new(maturity1)
 
     // Setup dai
@@ -86,7 +86,6 @@ contract('CPool', async (accounts) => {
     cDai = await CDai.new(dai.address)
     await cDai.setExchangeRate(toRay(2)) // c0 = 2.0
 
-
     // Set Comptroller
     comptroller = await ComptrollerMock.new()
 
@@ -94,7 +93,9 @@ contract('CPool', async (accounts) => {
     uniswapRouter = await UniswapV2RouterMock.new()
 
     // Setup Pool
-    pool = await CPool.new(cDai.address, fyDai1.address, comptroller.address, uniswapRouter.address, 'Name', 'Symbol', { from: owner })
+    pool = await CPool.new(cDai.address, fyDai1.address, comptroller.address, uniswapRouter.address, 'Name', 'Symbol', {
+      from: owner,
+    })
 
     await cDai.setExchangeRate(toRay(3)) // exchangeRate = 3.0
   })
@@ -155,7 +156,9 @@ contract('CPool', async (accounts) => {
       )
 
       // Test preview since we are here
-      const cDaiOutPreview = await pool.sellFYDaiAtRate(fyDaiIn, await cDai.exchangeRateCurrent.call(), { from: operator })
+      const cDaiOutPreview = await pool.sellFYDaiAtRate(fyDaiIn, await cDai.exchangeRateCurrent.call(), {
+        from: operator,
+      })
 
       const expectedCDaiOut = sellFYDaiNormalized(
         cDaiReserves.toString(),
@@ -202,7 +205,9 @@ contract('CPool', async (accounts) => {
       )
 
       // Test preview since we are here
-      const fyDaiInPreview = await pool.buyCDaiAtRate(cDaiOut, await cDai.exchangeRateCurrent.call(), { from: operator })
+      const fyDaiInPreview = await pool.buyCDaiAtRate(cDaiOut, await cDai.exchangeRateCurrent.call(), {
+        from: operator,
+      })
 
       const expectedFYDaiIn = buyVYDaiNormalized(
         cDaiReserves.toString(),
@@ -250,7 +255,9 @@ contract('CPool', async (accounts) => {
       )
 
       // Test preview since we are here
-      const fyDaiInPreview = await pool.buyCDaiAtRate(cDaiOut, await cDai.exchangeRateCurrent.call(), { from: operator })
+      const fyDaiInPreview = await pool.buyCDaiAtRate(cDaiOut, await cDai.exchangeRateCurrent.call(), {
+        from: operator,
+      })
 
       const expectedFYDaiIn = buyVYDaiNormalized(
         cDaiReserves.toString(),
@@ -271,7 +278,10 @@ contract('CPool', async (accounts) => {
       assert.equal(event.event, 'Trade')
       assert.equal(event.args.from, from)
       assert.equal(event.args.to, to)
-      assert.equal(event.args.cDaiTokens, mulRay(daiOut.toString(), (await cDai.exchangeRateCurrent.call()).toString()).toString())
+      assert.equal(
+        event.args.cDaiTokens,
+        mulRay(daiOut.toString(), (await cDai.exchangeRateCurrent.call()).toString()).toString()
+      )
       assert.equal(event.args.fyDaiTokens, fyDaiIn.neg().toString())
 
       assert.equal(await dai.balanceOf(to), daiOut.toString(), 'Receiver account should have 1 dai token')
@@ -374,7 +384,9 @@ contract('CPool', async (accounts) => {
         )
 
         // Test preview since we are here
-        const fyDaiOutPreview = await pool.sellCDaiAtRate(cDaiIn, await cDai.exchangeRateCurrent.call(), { from: operator })
+        const fyDaiOutPreview = await pool.sellCDaiAtRate(cDaiIn, await cDai.exchangeRateCurrent.call(), {
+          from: operator,
+        })
 
         const expectedFYDaiOut = sellVYDaiNormalized(
           cDaiReserves.toString(),
@@ -387,7 +399,7 @@ contract('CPool', async (accounts) => {
 
         await pool.addDelegate(operator, { from: from })
         await cDai.mintCDai(from, divRay(cDaiIn.toString(), (await cDai.exchangeRateCurrent.call()).toString()))
-        
+
         await cDai.approve(pool.address, cDaiIn, { from: from })
         const tx = await pool.sellCDai(from, to, cDaiIn, { from: operator })
         const event = tx.logs[tx.logs.length - 1]
@@ -422,7 +434,9 @@ contract('CPool', async (accounts) => {
         )
 
         // Test preview since we are here
-        const fyDaiOutPreview = await pool.sellCDaiAtRate(cDaiIn, await cDai.exchangeRateCurrent.call(), { from: operator })
+        const fyDaiOutPreview = await pool.sellCDaiAtRate(cDaiIn, await cDai.exchangeRateCurrent.call(), {
+          from: operator,
+        })
 
         const expectedFYDaiOut = sellVYDaiNormalized(
           cDaiReserves.toString(),
@@ -470,7 +484,9 @@ contract('CPool', async (accounts) => {
         )
 
         // Test preview since we are here
-        const cDaiInPreview = await pool.buyFYDaiAtRate(fyDaiOut, await cDai.exchangeRateCurrent.call(), { from: operator })
+        const cDaiInPreview = await pool.buyFYDaiAtRate(fyDaiOut, await cDai.exchangeRateCurrent.call(), {
+          from: operator,
+        })
 
         const expectedCDaiIn = buyFYDaiNormalized(
           cDaiReserves.toString(),
@@ -514,13 +530,25 @@ contract('CPool', async (accounts) => {
       it("doesn't allow trading", async () => {
         const oneToken = toWad(1)
 
-        await expectRevert(pool.sellCDaiAtRate(oneToken, await cDai.exchangeRateCurrent.call(), { from: operator }), 'Pool: Too late')
+        await expectRevert(
+          pool.sellCDaiAtRate(oneToken, await cDai.exchangeRateCurrent.call(), { from: operator }),
+          'Pool: Too late'
+        )
         await expectRevert(pool.sellCDai(from, to, oneToken, { from: from }), 'Pool: Too late')
-        await expectRevert(pool.buyCDaiAtRate(oneToken, await cDai.exchangeRateCurrent.call(), { from: operator }), 'Pool: Too late')
+        await expectRevert(
+          pool.buyCDaiAtRate(oneToken, await cDai.exchangeRateCurrent.call(), { from: operator }),
+          'Pool: Too late'
+        )
         await expectRevert(pool.buyCDai(from, to, oneToken, { from: from }), 'Pool: Too late')
-        await expectRevert(pool.sellFYDaiAtRate(oneToken, await cDai.exchangeRateCurrent.call(), { from: operator }), 'Pool: Too late')
+        await expectRevert(
+          pool.sellFYDaiAtRate(oneToken, await cDai.exchangeRateCurrent.call(), { from: operator }),
+          'Pool: Too late'
+        )
         await expectRevert(pool.sellFYDai(from, to, oneToken, { from: from }), 'Pool: Too late')
-        await expectRevert(pool.buyFYDaiAtRate(oneToken, await cDai.exchangeRateCurrent.call(), { from: operator }), 'Pool: Too late')
+        await expectRevert(
+          pool.buyFYDaiAtRate(oneToken, await cDai.exchangeRateCurrent.call(), { from: operator }),
+          'Pool: Too late'
+        )
         await expectRevert(pool.buyFYDai(from, to, oneToken, { from: from }), 'Pool: Too late')
       })
     })
