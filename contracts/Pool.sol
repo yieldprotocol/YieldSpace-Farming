@@ -391,7 +391,7 @@ contract Pool is IPool, Delegable, Ownable, ERC20Permit {
         public view override
         returns(uint128)
     {
-        return dai.balanceOf(address(this)).add(invested).toUint128();
+        return dai.balanceOf(address(this)).add(invested).toUint128(); // TODO: Does invested here need to be cDai.balanceOf(address(this)).muld(exchangeRateCurrent)?
     }
 
     function invest() internal {
